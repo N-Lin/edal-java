@@ -524,10 +524,15 @@ public class PaletteSelector implements PaletteSelectorIF {
             palettesPanel = new HorizontalPanel();
         }
         palettesPanel.clear();
+        /*
+         * 750px for the entire width should fit in almost any browser. Smaller
+         * than that will be having to scroll for other things anyway
+         */
+        int width = 750 / availablePalettes.size();
         for (final String palette : availablePalettes) {
             Image pImage = new Image(getImageUrl(palette, 200, 1));
             pImage.setHeight("200px");
-            pImage.setWidth("30px");
+            pImage.setWidth(width + "px");
             pImage.addClickHandler(new ClickHandler() {
                 @Override
                 public void onClick(ClickEvent event) {
@@ -815,11 +820,11 @@ public class PaletteSelector implements PaletteSelectorIF {
         }
         float maxVal = Float.parseFloat(vals[1]);
 
-        if(converter != null) {
+        if (converter != null) {
             minVal = converter.convertToDisplayUnit(minVal);
             maxVal = converter.convertToDisplayUnit(maxVal);
         }
-        
+
         /*
          * We don't format the output, in case the user has entered something
          * more precise
@@ -904,6 +909,8 @@ public class PaletteSelector implements PaletteSelectorIF {
 
     @Override
     public void setEnabled(boolean enabled) {
+        aboveMax.setEnabled(enabled);
+        belowMin.setEnabled(enabled);
         minScale.setEnabled(enabled);
         maxScale.setEnabled(enabled);
         autoButton.setEnabled(enabled);
@@ -912,10 +919,14 @@ public class PaletteSelector implements PaletteSelectorIF {
         opacity.setEnabled(enabled);
         logScale.setEnabled(enabled);
         if (enabled) {
+            aboveMax.removeStyleDependentName("inactive");
+            belowMin.removeStyleDependentName("inactive");
             paletteImage.removeStyleDependentName("inactive");
             mlLabel.removeStyleDependentName("inactive");
             mhLabel.removeStyleDependentName("inactive");
         } else {
+            aboveMax.addStyleDependentName("inactive");
+            belowMin.addStyleDependentName("inactive");
             paletteImage.addStyleDependentName("inactive");
             mlLabel.addStyleDependentName("inactive");
             mhLabel.addStyleDependentName("inactive");

@@ -31,7 +31,6 @@ package uk.ac.rdg.resc.godiva.client;
 import java.util.List;
 
 import org.gwtopenmaps.openlayers.client.Bounds;
-import org.gwtopenmaps.openlayers.client.LonLat;
 
 import uk.ac.rdg.resc.godiva.client.handlers.AviExportHandler;
 import uk.ac.rdg.resc.godiva.client.requests.CaseInsensitiveParameterMap;
@@ -47,6 +46,7 @@ import uk.ac.rdg.resc.godiva.client.state.PaletteSelectorIF;
 import uk.ac.rdg.resc.godiva.client.state.PaletteSelectorIF.OutOfRangeState;
 import uk.ac.rdg.resc.godiva.client.state.TimeSelectorIF;
 import uk.ac.rdg.resc.godiva.client.state.UnitsInfoIF;
+import uk.ac.rdg.resc.godiva.client.util.GodivaUtils;
 import uk.ac.rdg.resc.godiva.client.util.UnitConverter;
 import uk.ac.rdg.resc.godiva.client.widgets.AnimationButton;
 import uk.ac.rdg.resc.godiva.client.widgets.CopyrightInfo;
@@ -119,8 +119,6 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
      */
     protected boolean permalinking;
     protected CaseInsensitiveParameterMap permalinkParamsMap;
-    private int zoom = 1;
-    private LonLat centre = new LonLat(0.0, 0.0);
 
     // The link to the Google Earth KMZ
     protected Anchor kmzLink;
@@ -141,6 +139,10 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
      */
     private boolean timeseriesSupported = false;
     private boolean profilesSupported = false;
+
+    /* The extents of the current layer */
+    private String currentLayerExtent;
+    protected PushButton zoomToLayerExtents;
 
     /*
      * Implemented from interfaces/abstract methods
@@ -214,6 +216,11 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
                 unitsInfo, copyrightInfo, moreInfo, layerSelector);
 
         anim = new AnimationButton(mapArea, proxyUrl, layerSelector, timeSelector, this);
+        /*
+         * Start this disabled. It gets enabled when layer details are loaded
+         * (if appropriate)
+         */
+        anim.setEnabled(false);
 
         logo = getLogo();
 
@@ -240,6 +247,17 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
             }
         });
         infoButton.setEnabled(false);
+        infoButton.setTitle("More infomation about this dataset");
+
+        zoomToLayerExtents = new PushButton(new Image(GWT.getModuleBaseURL() + "img/extents.png"));
+        zoomToLayerExtents.addClickHandler(new ClickHandler() {
+            @Override
+            public void onClick(ClickEvent event) {
+                mapArea.zoomToExtent(currentLayerExtent);
+            }
+        });
+        zoomToLayerExtents.setEnabled(false);
+        zoomToLayerExtents.setTitle("Fit the map to this layer's extents");
 
         /*
          * Now get the layout and add it to the main window
@@ -331,39 +349,24 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
     protected void updateMap(MapArea mapArea, String layerUpdated) {
         /*
          * If we are updating the map having come here with permalink
-         * parameters, first zoom to the correct zoom/centre
+         * parameters, first zoom to the correct bounds
          */
         if (permalinking) {
-            String centre = permalinkParamsMap.get("centre");
-            if (centre != null) {
-                String zoom = permalinkParamsMap.get("zoom");
-                if (zoom != null) {
-                    mapArea.getMap().setCenter(
-                            new LonLat(Double.parseDouble(centre.split(",")[0]),
-                                    Double.parseDouble(centre.split(",")[1])),
-                            Integer.parseInt(zoom));
-                } else {
-                    mapArea.getMap().setCenter(
-                            new LonLat(Double.parseDouble(centre.split(",")[0]), Double
-                                    .parseDouble(centre.split(",")[1])));
-                }
-            } else {
-                String bbox = permalinkParamsMap.get("bbox");
-                if (bbox != null) {
-                    String[] bboxElems = bbox.split(",");
-                    if (bboxElems.length == 4) {
-                        try {
-                            mapArea.getMap().zoomToExtent(
-                                    new Bounds(Double.parseDouble(bboxElems[0]), Double
-                                            .parseDouble(bboxElems[1]), Double
-                                            .parseDouble(bboxElems[2]), Double
-                                            .parseDouble(bboxElems[3])));
-                        } catch (NumberFormatException nfe) {
-                            /*
-                             * Can't parse one of the bounds. Oh well, not a lot
-                             * we can do
-                             */
-                        }
+            String bbox = permalinkParamsMap.get("bbox");
+            if (bbox != null) {
+                String[] bboxElems = bbox.split(",");
+                if (bboxElems.length == 4) {
+                    try {
+                        mapArea.getMap().zoomToExtent(
+                                new Bounds(Double.parseDouble(bboxElems[0]), Double
+                                        .parseDouble(bboxElems[1]), Double
+                                        .parseDouble(bboxElems[2]), Double
+                                        .parseDouble(bboxElems[3])));
+                    } catch (NumberFormatException nfe) {
+                        /*
+                         * Can't parse one of the bounds. Oh well, not a lot we
+                         * can do
+                         */
                     }
                 }
             }
@@ -464,8 +467,7 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
 
         String urlParams = "dataset=" + widgetCollection.getWmsUrlProvider().getWmsUrl()
                 + "&numColorBands=" + paletteSelector.getNumColorBands() + "&logScale="
-                + paletteSelector.isLogScale() + "&zoom=" + zoom + "&centre=" + centre.lon() + ","
-                + centre.lat();
+                + paletteSelector.isLogScale() + "&bbox=" + mapArea.getMap().getExtent();
 
         ElevationSelectorIF elevationSelector = widgetCollection.getElevationSelector();
 
@@ -557,6 +559,15 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
     protected void layerDetailsLoaded(LayerDetails layerDetails, boolean autoUpdate) {
         super.layerDetailsLoaded(layerDetails, autoUpdate);
 
+        currentLayerExtent = layerDetails.getExtents();
+        zoomToLayerExtents.setEnabled(true);
+
+        if (layerDetails.isContinuousT()) {
+            anim.setEnabled(false);
+        } else {
+            anim.setEnabled(true);
+        }
+
         timeseriesSupported = layerDetails.supportsTimeseries();
         profilesSupported = layerDetails.supportsProfiles();
 
@@ -571,7 +582,7 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
          * We populate our widgets here, but in a multi-layer system, we may
          * want to create new widgets here
          */
-        if (autoUpdate) {
+        if (autoUpdate && !widgetCollection.getPaletteSelector().isLocked()) {
             widgetCollection.getPaletteSelector().selectPalette(layerDetails.getSelectedPalette());
             if (layerDetails.getAboveMaxColour() != null) {
                 widgetCollection.getPaletteSelector().setExtraAboveMaxColour(
@@ -604,7 +615,7 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
                         Integer.parseInt(numColorBands));
             }
 
-            String aboveMaxString = permalinkParamsMap.get("aboveMaxColor");
+            String aboveMaxString = URL.decodePathSegment(permalinkParamsMap.get("aboveMaxColor"));
             if (aboveMaxString != null) {
                 if ("extend".equalsIgnoreCase(aboveMaxString)) {
                     widgetCollection.getPaletteSelector().setAboveMax(OutOfRangeState.EXTEND);
@@ -612,10 +623,12 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
                     widgetCollection.getPaletteSelector().setAboveMax(OutOfRangeState.TRANSPARENT);
                 } else if ("0x000000".equalsIgnoreCase(aboveMaxString)) {
                     widgetCollection.getPaletteSelector().setAboveMax(OutOfRangeState.BLACK);
+                } else {
+                    widgetCollection.getPaletteSelector().setExtraAboveMaxColour(aboveMaxString);
                 }
             }
 
-            String belowMinString = permalinkParamsMap.get("belowMinColor");
+            String belowMinString = URL.decodePathSegment(permalinkParamsMap.get("belowMinColor"));
             if (belowMinString != null) {
                 if ("extend".equalsIgnoreCase(belowMinString)) {
                     widgetCollection.getPaletteSelector().setBelowMin(OutOfRangeState.EXTEND);
@@ -623,7 +636,14 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
                     widgetCollection.getPaletteSelector().setBelowMin(OutOfRangeState.TRANSPARENT);
                 } else if ("0x000000".equalsIgnoreCase(belowMinString)) {
                     widgetCollection.getPaletteSelector().setBelowMin(OutOfRangeState.BLACK);
+                } else {
+                    widgetCollection.getPaletteSelector().setExtraBelowMinColour(belowMinString);
                 }
+            }
+
+            String noDataString = URL.decodePathSegment(permalinkParamsMap.get("noDataColor"));
+            if (belowMinString != null) {
+                widgetCollection.getPaletteSelector().setNoDataColour(noDataString);
             }
 
             String currentElevation = permalinkParamsMap.get("elevation");
@@ -653,14 +673,12 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
     @Override
     public void onMapMove(MapMoveEvent eventObject) {
         super.onMapMove(eventObject);
-        centre = mapArea.getMap().getCenter();
         updateLinksEtc();
     }
 
     @Override
     public void onMapZoom(MapZoomEvent eventObject) {
         super.onMapZoom(eventObject);
-        zoom = mapArea.getMap().getZoom();
         updateLinksEtc();
     }
 
@@ -711,11 +729,14 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
 
         PaletteSelectorIF paletteSelector = widgetCollection.getPaletteSelector();
 
+        String aboveMax = paletteSelector.getAboveMaxString();
+        String belowMin = paletteSelector.getBelowMinString();
+        String noData = paletteSelector.getNoDataColour();
         String urlParams = "dataset=" + widgetCollection.getWmsUrlProvider().getWmsUrl()
                 + "&numColorBands=" + paletteSelector.getNumColorBands() + "&logScale="
-                + paletteSelector.isLogScale() + "&zoom=" + zoom + "&centre=" + centre.lon() + ","
-                + centre.lat() + "&abovemaxcolor=" + paletteSelector.getAboveMaxString()
-                + "&belowmincolor=" + paletteSelector.getBelowMinString();
+                + paletteSelector.isLogScale() + "&bbox=" + mapArea.getMap().getExtent()
+                + "&abovemaxcolor=" + aboveMax + "&belowmincolor=" + belowMin + "&nodatacolor="
+                + noData;
 
         TimeSelectorIF timeSelector = widgetCollection.getTimeSelector();
         ElevationSelectorIF elevationSelector = widgetCollection.getElevationSelector();
@@ -781,11 +802,12 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
         urlParams += "&opacity=" + paletteSelector.getOpacity();
 
         anim.updateDetails(currentLayer, currentElevation, currentPalette, currentStyle,
-                scaleRange, nColorBands, logScale);
+                scaleRange, aboveMax, belowMin, noData, nColorBands, logScale);
 
+        /* Don't need to encode the query string, because we never decode it */
         permalink.setHref(URL.encode(baseurl + urlParams));
         email.setHref("mailto:?subject=MyOcean Data Link&body="
-                + URL.encodeQueryString(baseurl + urlParams));
+                + URL.encodeQueryString(baseurl + GodivaUtils.encodeQueryString(urlParams)));
 
         // Screenshot-only stuff
         urlParams += "&bbox=" + mapArea.getMap().getExtent().toBBox(6);
@@ -814,7 +836,7 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
         String godivaPath = Window.Location.getPath();
         screenshot.setHref("http://" + Window.Location.getHost() + "/"
                 + godivaPath.substring(0, godivaPath.lastIndexOf('/'))
-                + "/screenshots/createScreenshot?" + urlParams);
+                + "/screenshots/createScreenshot?" + GodivaUtils.encodeQueryString(urlParams));
     }
 
     /*
@@ -833,6 +855,17 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
         Window.setTitle(menuTree.getTitle());
 
         if (permalinking) {
+            String bgMap = permalinkParamsMap.get("bgmap");
+            if (bgMap != null && !"".equals(bgMap)) {
+                try {
+                    mapArea.setBackgroundMap(bgMap);
+                } catch (Exception e) {
+                    /*
+                     * It doesn't matter if we can't set the background map, so
+                     * ignore any exceptions
+                     */
+                }
+            }
             String currentLayer = permalinkParamsMap.get("layer");
             if (currentLayer != null) {
                 String datasetUrl = permalinkParamsMap.get("dataset");
@@ -844,17 +877,6 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
                 } else {
                     String currentWms = URL.decode(datasetUrl);
                     layerSelector.selectLayer(currentLayer, currentWms, false);
-                }
-            }
-            String bgMap = permalinkParamsMap.get("bgmap");
-            if (bgMap != null && !"".equals(bgMap)) {
-                try {
-                    mapArea.setBackgroundMap(permalinkParamsMap.get("bgmap"));
-                } catch (Exception e) {
-                    /*
-                     * It doesn't matter if we can't set the background map, so
-                     * ignore any exceptions
-                     */
                 }
             }
         }
@@ -933,7 +955,7 @@ public class Godiva extends BaseWmsClient implements AviExportHandler {
                 widgetCollection.getUnitsInfo(), widgetCollection.getTimeSelector(),
                 widgetCollection.getElevationSelector(), widgetCollection.getPaletteSelector(),
                 kmzLink, permalink, email, screenshot, logo, mapArea, loadingImage, anim,
-                infoButton);
+                infoButton, zoomToLayerExtents);
         //        return LayoutManager.getCompactGodiva3Layout(layerSelector,
         //                widgetCollection.getUnitsInfo(), widgetCollection.getTimeSelector(),
         //                widgetCollection.getElevationSelector(), widgetCollection.getPaletteSelector(),

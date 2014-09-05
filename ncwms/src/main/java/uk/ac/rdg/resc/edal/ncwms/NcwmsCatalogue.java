@@ -32,11 +32,22 @@ import java.awt.Color;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.xml.bind.JAXBException;
+
+import net.sf.ehcache.Cache;
+import net.sf.ehcache.Element;
+import net.sf.ehcache.config.CacheConfiguration;
+import net.sf.ehcache.config.CacheConfiguration.TransactionalMode;
+import net.sf.ehcache.config.PersistenceConfiguration;
+import net.sf.ehcache.config.PersistenceConfiguration.Strategy;
+import net.sf.ehcache.store.MemoryStoreEvictionPolicy;
 
 import org.joda.time.DateTime;
 
@@ -56,6 +67,7 @@ import uk.ac.rdg.resc.edal.wms.util.ContactInfo;
 import uk.ac.rdg.resc.edal.wms.util.ServerInfo;
 
 public class NcwmsCatalogue extends WmsCatalogue implements DatasetStorage {
+    private static final String DYNAMIC_DATASET_CACHE_NAME = "dynamicDatasetCache";
 
     protected NcwmsConfig config;
     protected Map<String, Dataset> datasets;
@@ -73,8 +85,32 @@ public class NcwmsCatalogue extends WmsCatalogue implements DatasetStorage {
         this.config = config;
         this.config.setDatasetLoadedHandler(this);
         this.config.loadDatasets();
-        
+
         setCache(config.getCacheSettings());
+
+        /*
+         * Configure cache for dynamic datasets. Keep up to 10 dynamic datasets
+         * in memory, and expire them after 10 minutes of inactivity.
+         * 
+         * This cache is primarily for dynamic EN3 datasets or other datasets
+         * which are expensive to create. For the normal gridded case datasets
+         * are cheap to create (but expensive to read) so this cache will have
+         * little effect on performance. For datasets where a spatial index
+         * needs to be built, this will save a lot of time. However it is
+         * probably only rarely (if ever) that this will be used in practice.
+         */
+        CacheConfiguration cacheConfig = new CacheConfiguration(DYNAMIC_DATASET_CACHE_NAME, 0)
+                .eternal(false).maxEntriesLocalHeap(10).timeToLiveSeconds(10 * 60)
+                .memoryStoreEvictionPolicy(MemoryStoreEvictionPolicy.LRU)
+                .persistence(new PersistenceConfiguration().strategy(Strategy.NONE))
+                .transactionalMode(TransactionalMode.OFF);
+
+        /*
+         * If we already have a cache, we can assume that the configuration has
+         * changed, so we remove and re-add it.
+         */
+        Cache dynamicDatasetCache = new Cache(cacheConfig);
+        cacheManager.addCache(dynamicDatasetCache);
     }
 
     /**
@@ -120,6 +156,24 @@ public class NcwmsCatalogue extends WmsCatalogue implements DatasetStorage {
          * is exactly what we want.
          */
         datasets.put(dataset.getId(), dataset);
+
+        /*
+         * Re-sort the datasets map according to the titles of the datasets, so
+         * that they appear in the menu in this order.
+         */
+        List<Map.Entry<String, Dataset>> entryList = new ArrayList<Map.Entry<String, Dataset>>(
+                datasets.entrySet());
+        Collections.sort(entryList, new Comparator<Map.Entry<String, Dataset>>() {
+            public int compare(Map.Entry<String, Dataset> d1, Map.Entry<String, Dataset> d2) {
+                return config.getDatasetInfo(d1.getKey()).getTitle()
+                        .compareTo(config.getDatasetInfo(d2.getKey()).getTitle());
+            }
+        });
+
+        datasets = new LinkedHashMap<String, Dataset>();
+        for (Map.Entry<String, Dataset> entry : entryList) {
+            datasets.put(entry.getKey(), entry.getValue());
+        }
 
         /*
          * Now add the layer metadata to a map for future reference
@@ -195,7 +249,17 @@ public class NcwmsCatalogue extends WmsCatalogue implements DatasetStorage {
             return datasets.get(datasetId);
         } else {
             /*
-             * Check to see if we have a dynamic service defined which this dataset ID can map to
+             * We may have a dynamic dataset. First check the dynamic dataset
+             * cache.
+             */
+            Cache dynamicDatasetCache = cacheManager.getCache(DYNAMIC_DATASET_CACHE_NAME);
+            Element element = dynamicDatasetCache.get(datasetId);
+            if (element != null && element.getObjectValue() != null) {
+                return (Dataset) element.getObjectValue();
+            }
+            /*
+             * Check to see if we have a dynamic service defined which this
+             * dataset ID can map to
              */
             NcwmsDynamicService dynamicService = getDynamicServiceFromLayerName(datasetId);
             if (dynamicService == null || dynamicService.isDisabled()) {
@@ -221,6 +285,10 @@ public class NcwmsCatalogue extends WmsCatalogue implements DatasetStorage {
                 DatasetFactory datasetFactory = DatasetFactory.forName(dynamicService
                         .getDataReaderClass());
                 Dataset dynamicDataset = datasetFactory.createDataset("dynamic", datasetUrl);
+                /*
+                 * Store in the cache
+                 */
+                dynamicDatasetCache.put(new Element(datasetId, dynamicDataset));
                 return dynamicDataset;
             } catch (InstantiationException | IllegalAccessException | ClassNotFoundException
                     | IOException | EdalException e) {
@@ -229,7 +297,6 @@ public class NcwmsCatalogue extends WmsCatalogue implements DatasetStorage {
                  */
                 return null;
             }
-
         }
     }
 
@@ -256,7 +323,7 @@ public class NcwmsCatalogue extends WmsCatalogue implements DatasetStorage {
             throw new EdalLayerNotFoundException(
                     "The WMS layer name is malformed.  It should be of the form \"dataset/variable\"");
         }
-        return layerName.substring(finalSlashIndex+1);
+        return layerName.substring(finalSlashIndex + 1);
     }
 
     @Override

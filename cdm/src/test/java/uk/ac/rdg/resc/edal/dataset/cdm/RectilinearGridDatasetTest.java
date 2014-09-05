@@ -90,7 +90,7 @@ import uk.ac.rdg.resc.edal.util.PlottingDomainParams;
  * 
  * @author Nan Lin
  * */
-public class RectiLinearGridDatasetTest {
+public class RectilinearGridDatasetTest {
     // the comparison accuracy parameter used by assert equal statement
     private static final double delta = 1e-5;
 
@@ -203,10 +203,6 @@ public class RectiLinearGridDatasetTest {
     public void testVectorPlugin() throws DataReadingException, EdalException,
             UnsupportedOperationException {
         VectorPlugin vplugin = new VectorPlugin("vLon", "vLat", "Test Vector Field", true);
-        VariableMetadata[] vdata = new VariableMetadata[] { dataset.getVariableMetadata("vLon"),
-                dataset.getVariableMetadata("vLat") };
-        VariableMetadata[] afterApplyPlugin = vplugin.processVariableMetadata(vdata);
-
         dataset.addVariablePlugin(vplugin);
 
         // test on only one vertical position in order to save times
@@ -226,20 +222,9 @@ public class RectiLinearGridDatasetTest {
             Array1D<Number> magValues = data.getValues("vLonvLat-mag");
             Array1D<Number> dirValues = data.getValues("vLonvLat-dir");
 
-            assertEquals(afterApplyPlugin[1].getParameter().toString(),
-                    data.getParameter("vLonvLat-mag").toString());
-            assertEquals(afterApplyPlugin[2].getParameter().toString(),
-                    data.getParameter("vLonvLat-dir").toString());
-
             // two values below are set by test dataset generator
             double expectedLon = 100.0f * xIndex / (xSize - 1);
             double expectedLat = 100.0f * yIndex / (ySize - 1);
-
-            /*
-             * float expectedMag = (vplugin.getValue("vLonvLat-mag", hPos,
-             * values)).floatValue(); float expectedDir
-             * =(vplugin.getValue("vLonvLat-dir", hPos, values)).floatValue();
-             */
 
             float expectedMag = (float) Math.hypot(expectedLon, expectedLat);
             float expectedDir = (float) (Math.toDegrees(Math.atan2(expectedLon, expectedLat)));
@@ -257,8 +242,6 @@ public class RectiLinearGridDatasetTest {
      **/
     @Test
     public void testMetadataInfo() {
-        assertEquals(chrnology, dataset.getDatasetChronology());
-        assertEquals(vCrs, dataset.getDatasetVerticalCrs());
         assertEquals(MapFeature.class, dataset.getMapFeatureType("vLon"));
 
         VariableMetadata metadata = dataset.getVariableMetadata("vLon");
