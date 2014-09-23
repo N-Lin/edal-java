@@ -55,16 +55,19 @@ import uk.ac.rdg.resc.edal.domain.SimpleGridDomain;
 import uk.ac.rdg.resc.edal.domain.TemporalDomain;
 import uk.ac.rdg.resc.edal.domain.TrajectoryDomain;
 import uk.ac.rdg.resc.edal.domain.VerticalDomain;
+import uk.ac.rdg.resc.edal.domain.HovmoellerDomain;
 import uk.ac.rdg.resc.edal.exceptions.DataReadingException;
 import uk.ac.rdg.resc.edal.exceptions.IncorrectDomainException;
 import uk.ac.rdg.resc.edal.exceptions.MismatchedCrsException;
 import uk.ac.rdg.resc.edal.feature.GridFeature;
+import uk.ac.rdg.resc.edal.feature.HovmoellerFeature;
 import uk.ac.rdg.resc.edal.feature.MapFeature;
 import uk.ac.rdg.resc.edal.feature.PointSeriesFeature;
 import uk.ac.rdg.resc.edal.feature.ProfileFeature;
 import uk.ac.rdg.resc.edal.feature.TrajectoryFeature;
 import uk.ac.rdg.resc.edal.geometry.BoundingBox;
 import uk.ac.rdg.resc.edal.geometry.BoundingBoxImpl;
+import uk.ac.rdg.resc.edal.geometry.LineString;
 import uk.ac.rdg.resc.edal.grid.GridCell2D;
 import uk.ac.rdg.resc.edal.grid.HorizontalGrid;
 import uk.ac.rdg.resc.edal.grid.TimeAxis;
@@ -1932,4 +1935,59 @@ public abstract class AbstractGridDataset extends AbstractDataset {
     protected abstract GridDataSource openGridDataSource() throws IOException;
 
     protected abstract DataReadingStrategy getDataReadingStrategy();
+    
+    public List<HovmoellerFeature> extractHovmollerFeatures(Set<String> varIds,
+            LineString lineString, Extent<DateTime> tExtent) throws DataReadingException {
+            
+        //this is a grid dataset, we need to know details of the grid
+            HorizontalGrid grid;
+            for(String variable : varIds){
+                VariableMetadata metadata =getVariableMetadata(variable);
+                grid =(HorizontalGrid)metadata.getHorizontalDomain(); // is it safe?
+                break;
+            }
+            //all variables' Hovmoeller domain should have idential domain objects
+            HovmoellerDomain domain =new HovmoellerDomain(lineString, grid, tExtent);
+            
+            List<HovmoellerFeature> hovmollerFeatures =new ArrayList<>();
+            
+            GridDataSource dataSource = openGridDataSource();
+            //create Hovmoeller feature cell by cell
+            for(GridCell2D cell : domain.getDomainObjects()){
+                 //below four variables for defining the Hovmoller feature
+                String id;
+                String name;
+                String description;
+                Map<String, Parameter> parameters = new HashMap<>(); 
+                
+                id =...;//follow Guy's code
+                name =...; //follow Guy's code;
+
+                //container for all variables' values at one location
+                Map<String, Array1D<Number>> variableValuesAtOnePoint =new HashMap<>();
+                
+                for(String variable : varIds){
+                   description = ...;   //follow Guy's code
+                   parameters=....;   //follow Guy's code
+   
+                   VariableMetadata metadata =getVariableMetadata(variable);
+
+                   //shall we assume all temporal domain is identical for all variables?
+                   TimeAxis tAxis =covert(metadata.getTemporalDomain());
+                   //get min, max value on tAxis of the dataset given tExtent of Hovmoller domain
+                   int tmin = getTmin(tAxis, tExtent);
+                   int tmax = getTmax(tAxis, tExtent);
+                   int x_pos =cell.getGridCoordinates().getX();
+                   int y_pos =cell.getGridCoordinates().getY();
+                   //Extract time series data at given Horizontal positon (one cell). So z value is 0.0
+                   Array4D<Number> datain4D =dataSource.read(variable, x_pos, x_pos, y_pos, y_pos, 0, 0, tmin, tmax);
+                   Array1D<Number> datain1D =dataTransform(datain4D));
+                   variableValuesAtOnePoint.put(variable, datain1D);
+                }
+                HovmoellerFeature hFeature =new HovmoellerFeature(id, name, description, parameters, variableValuesAtOnePoint);
+                hovmollerFeatures.add(hFeature);
+            }
+            dataSource.close();
+            return hovmollerFeatures;
+    }
 }
