@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
 import uk.ac.rdg.resc.edal.dataset.plugins.VariablePlugin;
 import uk.ac.rdg.resc.edal.domain.Extent;
 import uk.ac.rdg.resc.edal.domain.GridDomain;
+import uk.ac.rdg.resc.edal.domain.HovmoellerDomain.HovmoellerCell;
 import uk.ac.rdg.resc.edal.domain.MapDomain;
 import uk.ac.rdg.resc.edal.domain.MapDomainImpl;
 import uk.ac.rdg.resc.edal.domain.SimpleGridDomain;
@@ -67,7 +68,6 @@ import uk.ac.rdg.resc.edal.feature.ProfileFeature;
 import uk.ac.rdg.resc.edal.feature.TrajectoryFeature;
 import uk.ac.rdg.resc.edal.geometry.BoundingBox;
 import uk.ac.rdg.resc.edal.geometry.BoundingBoxImpl;
-import uk.ac.rdg.resc.edal.geometry.LineString;
 import uk.ac.rdg.resc.edal.grid.GridCell2D;
 import uk.ac.rdg.resc.edal.grid.HorizontalGrid;
 import uk.ac.rdg.resc.edal.grid.TimeAxis;
@@ -90,6 +90,7 @@ import uk.ac.rdg.resc.edal.util.GISUtils;
 import uk.ac.rdg.resc.edal.util.GridCoordinates2D;
 import uk.ac.rdg.resc.edal.util.PlottingDomainParams;
 import uk.ac.rdg.resc.edal.util.ValuesArray1D;
+import uk.ac.rdg.resc.edal.util.ValuesArray2D;
 
 /**
  * A partial implementation of a {@link Dataset} based on a 4D grid, using a
@@ -461,7 +462,8 @@ public abstract class AbstractGridDataset extends AbstractDataset {
     }
 
     private Array2D<Number> readHorizontalData(String varId, HorizontalGrid targetGrid,
-            Double zPos, DateTime time, GridDataSource dataSource) throws IOException, DataReadingException {
+            Double zPos, DateTime time, GridDataSource dataSource) throws IOException,
+            DataReadingException {
         /*
          * This cast will always work, because we only ever call this method for
          * non-derived variables - i.e. those whose metadata was provided in the
@@ -1935,59 +1937,170 @@ public abstract class AbstractGridDataset extends AbstractDataset {
     protected abstract GridDataSource openGridDataSource() throws IOException;
 
     protected abstract DataReadingStrategy getDataReadingStrategy();
-    
-    public List<HovmoellerFeature> extractHovmollerFeatures(Set<String> varIds,
-            LineString lineString, Extent<DateTime> tExtent) throws DataReadingException {
-            
-        //this is a grid dataset, we need to know details of the grid
-            HorizontalGrid grid;
-            for(String variable : varIds){
-                VariableMetadata metadata =getVariableMetadata(variable);
-                grid =(HorizontalGrid)metadata.getHorizontalDomain(); // is it safe?
-                break;
+
+    public HovmoellerFeature extractHovmollerFeatures(Set<String> varIds,
+            final HovmoellerDomain domain) throws DataReadingException {
+        GridDataSource dataSource = null;
+        try {
+            /*
+             * Open the source of data
+             */
+            dataSource = openGridDataSource();
+
+            Map<String, Array2D<Number>> values = new HashMap<>();
+            Map<String, Parameter> parameters = new HashMap<>();
+
+            StringBuilder id = new StringBuilder("uk.ac.rdg.resc.edal.feature.");
+            id.append(System.currentTimeMillis());
+            id.append(":");
+            StringBuilder description = new StringBuilder("Hovmoeller feature from variables:\n");
+
+            /*
+             * Keep a list of variable IDs which we need to generate data for
+             * from a plugin
+             */
+            Map<String, VariablePlugin> varsToGenerate = new HashMap<>();
+
+            /*
+             * If the user has passed in null for the variable IDs, they want
+             * all variables returned
+             */
+            if (varIds == null) {
+                varIds = getVariableIds();
             }
-            //all variables' Hovmoeller domain should have idential domain objects
-            HovmoellerDomain domain =new HovmoellerDomain(lineString, grid, tExtent);
-            
-            List<HovmoellerFeature> hovmollerFeatures =new ArrayList<>();
-            
-            GridDataSource dataSource = openGridDataSource();
-            //create Hovmoeller feature cell by cell
-            for(GridCell2D cell : domain.getDomainObjects()){
-                 //below four variables for defining the Hovmoller feature
-                String id;
-                String name;
-                String description;
-                Map<String, Parameter> parameters = new HashMap<>(); 
-                
-                id =...;//follow Guy's code
-                name =...; //follow Guy's code;
 
-                //container for all variables' values at one location
-                Map<String, Array1D<Number>> variableValuesAtOnePoint =new HashMap<>();
-                
-                for(String variable : varIds){
-                   description = ...;   //follow Guy's code
-                   parameters=....;   //follow Guy's code
-   
-                   VariableMetadata metadata =getVariableMetadata(variable);
-
-                   //shall we assume all temporal domain is identical for all variables?
-                   TimeAxis tAxis =covert(metadata.getTemporalDomain());
-                   //get min, max value on tAxis of the dataset given tExtent of Hovmoller domain
-                   int tmin = getTmin(tAxis, tExtent);
-                   int tmax = getTmax(tAxis, tExtent);
-                   int x_pos =cell.getGridCoordinates().getX();
-                   int y_pos =cell.getGridCoordinates().getY();
-                   //Extract time series data at given Horizontal positon (one cell). So z value is 0.0
-                   Array4D<Number> datain4D =dataSource.read(variable, x_pos, x_pos, y_pos, y_pos, 0, 0, tmin, tmax);
-                   Array1D<Number> datain1D =dataTransform(datain4D));
-                   variableValuesAtOnePoint.put(variable, datain1D);
+            for (String varId : varIds) {
+                if (!getVariableMetadata(varId).isScalar()) {
+                    /*
+                     * Don't read data for unplottable variables
+                     */
+                    continue;
                 }
-                HovmoellerFeature hFeature =new HovmoellerFeature(id, name, description, parameters, variableValuesAtOnePoint);
-                hovmollerFeatures.add(hFeature);
+
+                id.append(varId);
+                description.append(varId + "\n");
+
+                /*
+                 * We defer plugin-generated variables until after all other
+                 * required variables have been read. This way, if any of the
+                 * plugin-generated variables require data which we will read
+                 * anyway, we don't have to read it twice.
+                 */
+                VariablePlugin derivingPlugin = isDerivedVariable(varId);
+                if (derivingPlugin != null) {
+                    /*
+                     * Save the variable ID and continue on the outer loop
+                     */
+                    varsToGenerate.put(varId, derivingPlugin);
+                    continue;
+                }
+
+                /*
+                 * Do the actual data reading
+                 */
+                Array2D<Number> data = readSingleVariableInHovmoellerDomain(varId, domain,
+                        dataSource);
+
+                values.put(varId, data);
+                /*
+                 * We just use the existing parameter data, as it will be the
+                 * same.
+                 */
+                parameters.put(varId, getVariableMetadata(varId).getParameter());
             }
+
+            for (String derivedVarId : varsToGenerate.keySet()) {
+                VariablePlugin plugin = varsToGenerate.get(derivedVarId);
+                
+                @SuppressWarnings("unchecked")
+                Array2D<Number>[] pluginSourceData = new Array2D[plugin.usesVariables().length];
+                VariableMetadata[] pluginSourceMetadata = new VariableMetadata[plugin
+                        .usesVariables().length];
+                /*
+                 * Loop through the variable IDs required by this plugin,
+                 * getting data and metadata
+                 * 
+                 * If we have already read the data, add it to the array,
+                 * otherwise read the data first.
+                 */
+                for (int i = 0; i < pluginSourceData.length; i++) {
+                    String pluginSourceVarId = plugin.usesVariables()[i];
+                    if (values.containsKey(pluginSourceVarId)) {
+                        pluginSourceData[i] = values.get(pluginSourceVarId);
+                    } else {
+                        pluginSourceData[i] = readSingleVariableInHovmoellerDomain(
+                                pluginSourceVarId, domain, dataSource);
+                    }
+                    pluginSourceMetadata[i] = getVariableMetadata(pluginSourceVarId);
+                }
+
+                values.put(derivedVarId, plugin.generateArray2D(derivedVarId,
+                        new Array2D<HorizontalPosition>(pluginSourceData[0].getYSize(),
+                                pluginSourceData[0].getXSize()) {
+                            @Override
+                            public HorizontalPosition get(int... coords) {
+                                return domain.getDomainObjects().get(coords).horizontalPosition;
+                            }
+
+                            @Override
+                            public void set(HorizontalPosition value, int... coords) {
+                                throw new UnsupportedOperationException("This array is immutable");
+                            }
+                        }, pluginSourceData));
+                parameters.put(derivedVarId, getVariableMetadata(derivedVarId).getParameter());
+            }
+
+            /*
+             * Release resources held by the DataSource
+             */
             dataSource.close();
-            return hovmollerFeatures;
+
+            /*
+             * Construct the HovmoellerFeature from the t and z values, the
+             * horizontal grid and the VariableMetadata objects
+             */
+            HovmoellerFeature hovmoellerFeature = new HovmoellerFeature(UUID.nameUUIDFromBytes(
+                    id.toString().getBytes()).toString(), "Extracted Hovmoeller Feature",
+                    description.toString(), domain, parameters, values);
+
+            return hovmoellerFeature;
+        } catch (IOException e) {
+            throw new DataReadingException("Problem reading Hovmoeller feature", e);
+        } finally {
+            if (dataSource != null) {
+                try {
+                    dataSource.close();
+                } catch (IOException e) {
+                    log.error("Problem closing data source");
+                }
+            }
+        }
+
+    }
+
+    private final Array2D<Number> readSingleVariableInHovmoellerDomain(String variableId,
+            HovmoellerDomain domain, GridDataSource dataSource) throws DataReadingException {
+        TimeAxis tAxis = domain.getTimeAxis();
+
+        int ysize = domain.getTimeAxis().size();
+        int xsize = domain.getlPointsOnLineString().size();
+        Array2D<Number> data = new ValuesArray2D(ysize, xsize);
+
+        Array1D<HovmoellerCell> cells = domain.getDomainObjects();
+
+        for (int i = 0; i < xsize; i++) {
+
+            // set null or 0.0?
+            Double z = null;
+
+            for (int j = 0; j < ysize; j++) {
+                HorizontalPosition position = cells.get(j+i*xsize).horizontalPosition;
+                Number value = readPointData(variableId, position, z, tAxis.getCoordinateValue(j),
+                        dataSource);
+                data.set(value, j, i);
+            }
+
+        }
+        return data;
     }
 }

@@ -50,15 +50,19 @@ import org.junit.Before;
 import org.junit.Test;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
+import uk.ac.rdg.resc.edal.dataset.AbstractGridDataset;
 import uk.ac.rdg.resc.edal.dataset.Dataset;
 import uk.ac.rdg.resc.edal.dataset.plugins.VectorPlugin;
 import uk.ac.rdg.resc.edal.domain.Extent;
+import uk.ac.rdg.resc.edal.domain.HorizontalDomain;
+import uk.ac.rdg.resc.edal.domain.HovmoellerDomain;
 import uk.ac.rdg.resc.edal.domain.MapDomain;
 import uk.ac.rdg.resc.edal.domain.MapDomainImpl;
 import uk.ac.rdg.resc.edal.exceptions.DataReadingException;
 import uk.ac.rdg.resc.edal.exceptions.EdalException;
 import uk.ac.rdg.resc.edal.feature.DiscreteFeature;
 import uk.ac.rdg.resc.edal.feature.GridFeature;
+import uk.ac.rdg.resc.edal.feature.HovmoellerFeature;
 import uk.ac.rdg.resc.edal.feature.MapFeature;
 import uk.ac.rdg.resc.edal.feature.PointSeriesFeature;
 import uk.ac.rdg.resc.edal.feature.ProfileFeature;
@@ -66,6 +70,7 @@ import uk.ac.rdg.resc.edal.feature.TrajectoryFeature;
 import uk.ac.rdg.resc.edal.geometry.BoundingBox;
 import uk.ac.rdg.resc.edal.geometry.BoundingBoxImpl;
 import uk.ac.rdg.resc.edal.grid.GridCell2D;
+import uk.ac.rdg.resc.edal.grid.HorizontalGrid;
 import uk.ac.rdg.resc.edal.grid.RectilinearGrid;
 import uk.ac.rdg.resc.edal.grid.RegularGridImpl;
 import uk.ac.rdg.resc.edal.grid.VerticalAxis;
@@ -1198,5 +1203,30 @@ public class RectiLinearGridDatasetTest {
                         delta);
             }
         }
+    }
+    
+    @Test
+    public void extractHovmoellerFeatureTest() throws DataReadingException {
+        HorizontalPosition h1 =new HorizontalPosition(102.2, 33.6, crs);
+        HorizontalPosition h2 =new HorizontalPosition(122.4, 46.8, crs);
+        List<HorizontalPosition> lineString = new ArrayList<>();
+        lineString.add(h1);
+        lineString.add(h2);
+
+        HovmoellerDomain domain =new HovmoellerDomain(lineString, tAxis);
+        AbstractGridDataset data = (AbstractGridDataset) dataset;
+        RectilinearGrid grid =(RectilinearGrid) data.getVariableMetadata("vLon").getHorizontalDomain();
+        //grid.getXAxis()
+System.out.println("y index of "+ grid.findIndexOf(h1).getX());
+System.out.println("y index of "+ grid.getXAxis().findIndexOf(122.4));
+        HovmoellerFeature hFeatures = data.extractHovmollerFeatures(null, domain);
+        //System.out.println(hFeatures.getValues("vLon").getYSize());
+        Array2D<Number> results =hFeatures.getValues("vLon");
+        for(int i=0; i<2; i++){
+            for(int j=0; j<10; j++){
+                System.out.println(results.get(j,i));
+            }
+        }
+        
     }
 }

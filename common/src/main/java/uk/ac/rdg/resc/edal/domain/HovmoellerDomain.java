@@ -27,98 +27,173 @@
  ******************************************************************************/
 
 package uk.ac.rdg.resc.edal.domain;
+
 import java.util.List;
 
+import org.joda.time.DateTime;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
-import uk.ac.rdg.resc.edal.geometry.BoundingBox;
-import uk.ac.rdg.resc.edal.geometry.LineString;
-import uk.ac.rdg.resc.edal.grid.GridCell2D;
-import uk.ac.rdg.resc.edal.grid.HorizontalGrid;
 import uk.ac.rdg.resc.edal.grid.TimeAxis;
 import uk.ac.rdg.resc.edal.position.HorizontalPosition;
-import uk.ac.rdg.resc.edal.position.HovmoellerPosition;
+import uk.ac.rdg.resc.edal.position.GeoPosition;
+import uk.ac.rdg.resc.edal.domain.HovmoellerDomain.HovmoellerCell;
 import uk.ac.rdg.resc.edal.util.Array1D;
 
-import org.joda.time.DateTime;
-
-
 /**
- * A measurement of a time series along a line string.
- *
- * @authoer Nan
+ * A domain for measurement of a time series along points on a line string.
+ * 
+ * @author Nan
  */
-public class HovmoellerDomain implements DiscreteDomain<HovmoellerPosition, GridCell2D>{
-  //central points of the cells that the given line string intersects with the grid
-    private Array1D<GridCell2D> domainObjects;
-    
-    private TimeAxis tAxis;
-    private HorizontalGrid hGrid;
+public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerCell> {
+
+    public static class HovmoellerCell {
+        public final HorizontalPosition horizontalPosition;
+        public final Extent<DateTime> timeExtent;
+
+        HovmoellerCell(HorizontalPosition hPos, Extent<DateTime> tExtent) {
+            horizontalPosition = hPos;
+            timeExtent = tExtent;
+        }
+    }
+
+    /**
+     * An implementation of Array1D containing HovmoellerDomain entity:
+     * HovmoellerCell.
+     * 
+     * @author Nan
+     * 
+     */
+    private class HovmoellerCellArray extends Array1D<HovmoellerCell> {
+
+        private HovmoellerCell[] data;
+
+        public HovmoellerCellArray(int size) {
+            super(size);
+            data = new HovmoellerCell[size];
+        }
+
+        @Override
+        public HovmoellerCell get(int... coords) {
+            if (coords.length != 1) {
+                throw new IllegalArgumentException("Wrong number of co-ordinates (" + coords.length
+                        + ") for this Array (needs 1)");
+            }
+            return data[coords[0]];
+        }
+
+        @Override
+        public void set(HovmoellerCell value, int... coords) {
+            if (coords.length != 1) {
+                throw new IllegalArgumentException("Wrong number of co-ordinates (" + coords.length
+                        + ") for this Array (needs 1)");
+            }
+            data[coords[0]] = value;
+        }
+    }
+
+    // all points on a line string
+    private List<HorizontalPosition> pointsOnLineString;
+    private Array1D<HovmoellerCell> domainObjects;
     private CoordinateReferenceSystem crs;
+    private TimeAxis tAxis;
 
-    public HovmoellerDomain(LineString lineString, HorizontalGrid hGrid, Extent<DateTime> dateExtent){
-        crs =hGrid.getCoordinateReferenceSystem();
-        
-        //calculate grid cells that the lins string intersects with the grid
-        domainObjects =getLineStringIntersectGrid(lineString, hGrid);
+    public HovmoellerDomain(List<HorizontalPosition> pointsOnLineString, TimeAxis tAxis) {
+        /*
+         * Points on a line string are derived by an external algorithm. We can
+         * assume these points' crs is identical as the algorithm can covert
+         * different crs into a common crs.
+         */
+        int numberOfTimeValues = tAxis.size();
+        int numberOfPoints = pointsOnLineString.size();
 
-        this.hGrid =hGrid;
-        tAxis =covertFromDateTimeExtent(dateExtent); 
-    }
-  
-    //need an algorithm to do this task. Guy has done it before.
-    private Array1D<HorizontalPosition> getLineStringIntersectGrid(LineString lineString, HorizontalGrid hGrid){
-      //...
+        if (numberOfPoints > 0 && numberOfTimeValues > 0) {
+            crs = pointsOnLineString.get(0).getCoordinateReferenceSystem();
+            this.pointsOnLineString = pointsOnLineString;
+            this.tAxis = tAxis;
 
-    }
-    
-    private TimeAxis covertFromDateTimeExtent(Extent<DateTime> dateExtent){...}
+            domainObjects = new HovmoellerCellArray(numberOfTimeValues * numberOfPoints);
 
-    public boolean contains(HovmoellerPosition p){
-    if(p.getTimeExtent().intersects(p.getTimeExtent())){
-           for(int i =0; i<domainObjects.size(); i++){
-               if(domainObjects.get(i).contains(p.getHorizontalPosition())){
-                    return true;
-               }
-           }
-           return false;
+            for (int i = 0; i < numberOfPoints; i++) {
+                for (int j = 0; j < numberOfTimeValues; j++) {
+                    // they are horizontal points so z values is set to null
+                    domainObjects.set(
+                            new HovmoellerCell(pointsOnLineString.get(i), tAxis
+                                    .getCoordinateBounds(j)), j + i * numberOfPoints);
+                }
+            }
+        } else {
+            crs = null;
+            this.pointsOnLineString = null;
+            domainObjects = null;
         }
-        else{
-           return false;
-        }
+
     }
-    
-    public Array1D<GridCell2D> getDomainObjects(){
+
+    public boolean contains(GeoPosition p) {
+        for (int i = 0; i < domainObjects.size(); i++) {
+            if (domainObjects.get(i).horizontalPosition.equals(p.getHorizontalPosition())
+                    && domainObjects.get(i).timeExtent.contains(p.getTime())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public Array1D<HovmoellerCell> getDomainObjects() {
         return domainObjects;
     }
-  
-    public CoordinateReferenceSystem getCoordinateReferenceSystem(){
+
+    public CoordinateReferenceSystem getCoordinateReferenceSystem() {
         return crs;
     }
 
-    public TimeAxis getTimeAxis(){
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        HovmoellerDomain other = (HovmoellerDomain) obj;
+        if (pointsOnLineString == null) {
+            if (other.pointsOnLineString != null)
+                return false;
+        } else if (!pointsOnLineString.equals(other.pointsOnLineString))
+            return false;
+        if (domainObjects == null) {
+            if (other.domainObjects != null)
+                return false;
+        } else if (!domainObjects.equals(other.domainObjects))
+            return false;
+        if (crs == null) {
+            if (other.crs != null)
+                return false;
+        } else if (!crs.equals(other.crs))
+            return false;
+        if (tAxis == null) {
+            if (other.tAxis != null)
+                return false;
+        } else if (!tAxis.equals(other.tAxis))
+            return false;
+        return true;
+    }
+
+    public int hashcode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result
+                + ((pointsOnLineString == null) ? 0 : pointsOnLineString.hashCode());
+        result = prime * result + ((domainObjects == null) ? 0 : domainObjects.hashCode());
+        result = prime * result + ((crs == null) ? 0 : crs.hashCode());
+        result = prime * result + ((tAxis == null) ? 0 : tAxis.hashCode());
+        return result;
+    }
+
+    public List<HorizontalPosition> getlPointsOnLineString() {
+        return pointsOnLineString;
+    }
+
+    public TimeAxis getTimeAxis() {
         return tAxis;
     }
-
-    public HorizontalGrid getHorizontalGrid(){
-        return hGrid;
-    }
-
-    public String toString(){
-        return "String";
-    }
-
-    public boolean equals(Object obj){
-        
-    }
-
-    public int hashcode(){
-        
-    }
-    
-    public List<HovmoellerPosition> getAllHovmollerPositions(){}
-
-    public List<HorizontalPosition> getHorizontalPositionsOfHovmollerPositions(){}
-
-    public BoundingBox getBoundingBox(){ }
 }
