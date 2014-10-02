@@ -29,25 +29,25 @@
 package uk.ac.rdg.resc.edal.feature;
 
 import uk.ac.rdg.resc.edal.domain.HovmoellerDomain;
-import uk.ac.rdg.resc.edal.grid.GridCell2D;
+import uk.ac.rdg.resc.edal.domain.HovmoellerDomain.HovmoellerCell;
 import uk.ac.rdg.resc.edal.metadata.Parameter;
-import uk.ac.rdg.resc.edal.position.HovmoellerPosition;
-import uk.ac.rdg.resc.edal.util.Array1D;
+import uk.ac.rdg.resc.edal.position.GeoPosition;
+import uk.ac.rdg.resc.edal.util.Array2D;
 
 import java.util.Map;
 
 /**
  * A measurement of a time series along a line string inside the grid.
- *
- * @authoer Nan
+ * 
+ * @author Nan
  */
 
-public class HovmoellerFeature extends AbstractDiscreteFeature<HovmoellerPosition, GridCell2D>{
+public class HovmoellerFeature extends AbstractDiscreteFeature<GeoPosition, HovmoellerCell> {
     public HovmoellerFeature(String id, String name, String description, HovmoellerDomain domain,
-            Map<String, Parameter> parameters, Map<String, Array1D<Number>> values) {
+            Map<String, Parameter> parameters, Map<String, Array2D<Number>> values) {
         super(id, name, description, domain, parameters, values);
     }
-    
+
     /**
      * Gets the {@link TimeAxis} which makes up this domain
      */
@@ -55,10 +55,10 @@ public class HovmoellerFeature extends AbstractDiscreteFeature<HovmoellerPositio
     public HovmoellerDomain getDomain() {
         return (HovmoellerDomain) super.getDomain();
     }
-    
+
     @Override
-    public Array1D<Number> getValues(String paramId) {
-        return (Array1D<Number>) super.getValues(paramId);
+    public Array2D<Number> getValues(String paramId) {
+        return (Array2D<Number>) super.getValues(paramId);
     }
 
 }
