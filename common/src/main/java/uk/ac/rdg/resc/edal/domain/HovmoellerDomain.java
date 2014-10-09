@@ -37,7 +37,7 @@ import uk.ac.rdg.resc.edal.grid.TimeAxis;
 import uk.ac.rdg.resc.edal.position.HorizontalPosition;
 import uk.ac.rdg.resc.edal.position.GeoPosition;
 import uk.ac.rdg.resc.edal.domain.HovmoellerDomain.HovmoellerCell;
-import uk.ac.rdg.resc.edal.util.Array1D;
+import uk.ac.rdg.resc.edal.util.Array2D;
 
 /**
  * A domain for measurement of a time series along points on a line string.
@@ -46,6 +46,12 @@ import uk.ac.rdg.resc.edal.util.Array1D;
  */
 public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerCell> {
 
+    /**
+     * An entity in a Hovmoeller domain.
+     * 
+     * @author Nan
+     *
+     */
     public static class HovmoellerCell {
         public final HorizontalPosition horizontalPosition;
         public final Extent<DateTime> timeExtent;
@@ -57,43 +63,40 @@ public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerC
     }
 
     /**
-     * An implementation of Array1D containing HovmoellerDomain entity:
+     * An implementation of Array2D containing HovmoellerDomain entity:
      * HovmoellerCell.
      * 
-     * @author Nan
-     * 
      */
-    private class HovmoellerCellArray extends Array1D<HovmoellerCell> {
+    private class HovmoellerCellArray extends Array2D<HovmoellerCell> {
+        private HovmoellerCell[][] data;
 
-        private HovmoellerCell[] data;
-
-        public HovmoellerCellArray(int size) {
-            super(size);
-            data = new HovmoellerCell[size];
+        public HovmoellerCellArray(int ysize, int xsize) {
+            super(ysize, xsize);
+            data = new HovmoellerCell[ysize][xsize];
         }
 
         @Override
         public HovmoellerCell get(int... coords) {
-            if (coords.length != 1) {
+            if (coords.length != 2) {
                 throw new IllegalArgumentException("Wrong number of co-ordinates (" + coords.length
-                        + ") for this Array (needs 1)");
+                        + ") for this Array (needs 2)");
             }
-            return data[coords[0]];
+            return data[coords[Y_IND]][coords[X_IND]];
         }
 
         @Override
         public void set(HovmoellerCell value, int... coords) {
-            if (coords.length != 1) {
+            if (coords.length != 2) {
                 throw new IllegalArgumentException("Wrong number of co-ordinates (" + coords.length
-                        + ") for this Array (needs 1)");
+                        + ") for this Array (needs 2)");
             }
-            data[coords[0]] = value;
+            data[coords[Y_IND]][coords[X_IND]] = value;
         }
     }
 
     // all points on a line string
     private List<HorizontalPosition> pointsOnLineString;
-    private Array1D<HovmoellerCell> domainObjects;
+    private Array2D<HovmoellerCell> domainObjects;
     private CoordinateReferenceSystem crs;
     private TimeAxis tAxis;
 
@@ -111,14 +114,14 @@ public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerC
             this.pointsOnLineString = pointsOnLineString;
             this.tAxis = tAxis;
 
-            domainObjects = new HovmoellerCellArray(numberOfTimeValues * numberOfPoints);
+            domainObjects = new HovmoellerCellArray(numberOfTimeValues, numberOfPoints);
 
             for (int i = 0; i < numberOfPoints; i++) {
                 for (int j = 0; j < numberOfTimeValues; j++) {
                     // they are horizontal points so z values is set to null
                     domainObjects.set(
                             new HovmoellerCell(pointsOnLineString.get(i), tAxis
-                                    .getCoordinateBounds(j)), j + i * numberOfPoints);
+                                    .getCoordinateBounds(j)), j, i);
                 }
             }
         } else {
@@ -139,7 +142,7 @@ public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerC
         return false;
     }
 
-    public Array1D<HovmoellerCell> getDomainObjects() {
+    public Array2D<HovmoellerCell> getDomainObjects() {
         return domainObjects;
     }
 
@@ -195,5 +198,13 @@ public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerC
 
     public TimeAxis getTimeAxis() {
         return tAxis;
+    }
+    
+    public int getXsize(){
+        return pointsOnLineString.size();
+    }
+    
+    public int getYsize(){
+        return tAxis.size();
     }
 }

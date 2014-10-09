@@ -1941,6 +1941,9 @@ public abstract class AbstractGridDataset extends AbstractDataset {
     public HovmoellerFeature extractHovmollerFeatures(Set<String> varIds,
             final HovmoellerDomain domain) throws DataReadingException {
         GridDataSource dataSource = null;
+        if(domain.getlPointsOnLineString()==null || domain.getTimeAxis() ==null){
+            return null;
+        }
         try {
             /*
              * Open the source of data
@@ -2086,7 +2089,7 @@ public abstract class AbstractGridDataset extends AbstractDataset {
         int xsize = domain.getlPointsOnLineString().size();
         Array2D<Number> data = new ValuesArray2D(ysize, xsize);
 
-        Array1D<HovmoellerCell> cells = domain.getDomainObjects();
+        Array2D<HovmoellerCell> cells = domain.getDomainObjects();
 
         for (int i = 0; i < xsize; i++) {
 
@@ -2094,7 +2097,7 @@ public abstract class AbstractGridDataset extends AbstractDataset {
             Double z = null;
 
             for (int j = 0; j < ysize; j++) {
-                HorizontalPosition position = cells.get(j+i*xsize).horizontalPosition;
+                HorizontalPosition position = cells.get(j, i).horizontalPosition;
                 Number value = readPointData(variableId, position, z, tAxis.getCoordinateValue(j),
                         dataSource);
                 data.set(value, j, i);
