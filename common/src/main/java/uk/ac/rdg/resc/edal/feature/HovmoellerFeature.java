@@ -48,9 +48,6 @@ public class HovmoellerFeature extends AbstractDiscreteFeature<GeoPosition, Hovm
         super(id, name, description, domain, parameters, values);
     }
 
-    /**
-     * Gets the {@link TimeAxis} which makes up this domain
-     */
     @Override
     public HovmoellerDomain getDomain() {
         return (HovmoellerDomain) super.getDomain();
@@ -60,5 +57,4 @@ public class HovmoellerFeature extends AbstractDiscreteFeature<GeoPosition, Hovm
     public Array2D<Number> getValues(String paramId) {
         return (Array2D<Number>) super.getValues(paramId);
     }
-
 }

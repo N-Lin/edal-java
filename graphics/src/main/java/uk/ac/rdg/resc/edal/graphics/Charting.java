@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013 The University of Reading
+ * Copyright (c) 2013, 2014 The University of Reading
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,11 @@ package uk.ac.rdg.resc.edal.graphics;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.geom.Ellipse2D;
+import java.awt.image.BufferedImage;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -48,6 +50,7 @@ import java.util.Set;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.axis.AxisLocation;
+import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.plot.CombinedDomainXYPlot;
 import org.jfree.chart.plot.IntervalMarker;
@@ -79,19 +82,26 @@ import org.jfree.ui.TextAnchor;
 import org.joda.time.Chronology;
 import org.joda.time.DateTime;
 
+import uk.ac.rdg.resc.edal.domain.Extent;
 import uk.ac.rdg.resc.edal.exceptions.MismatchedCrsException;
 import uk.ac.rdg.resc.edal.feature.Feature;
+import uk.ac.rdg.resc.edal.feature.HovmoellerFeature;
 import uk.ac.rdg.resc.edal.feature.PointSeriesFeature;
 import uk.ac.rdg.resc.edal.feature.ProfileFeature;
 import uk.ac.rdg.resc.edal.feature.TrajectoryFeature;
 import uk.ac.rdg.resc.edal.geometry.LineString;
+import uk.ac.rdg.resc.edal.graphics.style.ColourScale;
 import uk.ac.rdg.resc.edal.graphics.style.ColourScheme;
+import uk.ac.rdg.resc.edal.graphics.style.SegmentColourScheme;
+import uk.ac.rdg.resc.edal.grid.TimeAxis;
 import uk.ac.rdg.resc.edal.grid.VerticalAxis;
 import uk.ac.rdg.resc.edal.metadata.Parameter;
 import uk.ac.rdg.resc.edal.position.HorizontalPosition;
 import uk.ac.rdg.resc.edal.position.VerticalCrs;
 import uk.ac.rdg.resc.edal.util.Array1D;
+import uk.ac.rdg.resc.edal.util.Array2D;
 import uk.ac.rdg.resc.edal.util.TimeUtils;
+import uk.ac.rdg.resc.edal.graphics.style.util.ColourPalette;
 
 /**
  * Code to produce various types of chart.
@@ -233,8 +243,8 @@ final public class Charting {
         }
 
         String units = "";
-        if(vCrs != null) {
-            units = " ("+vCrs.getUnits()+")";
+        if (vCrs != null) {
+            units = " (" + vCrs.getUnits() + ")";
         }
         NumberAxis zAxis = new NumberAxis(zAxisLabel + units);
         zAxis.setStandardTickUnits(NumberAxis.createIntegerTickUnits());
@@ -813,5 +823,218 @@ final public class Charting {
                 return colourScheme.getColor(value);
             }
         };
+    }
+
+    /**
+     * Creates a variable Hovmoeller plot in the {@link HovmoellerFeature} which
+     * has been extracted from the {@link HovmoellerDomain}.
+     * 
+     * 
+     * @param varId
+     *            A variable name whose the corresponding Hovmoeller feature
+     *            will be plotted.
+     * @param feature
+     *            A Hovmoeller feature
+     * @return The plot
+     */
+    public static BufferedImage plotHovmoellerFeature(String varId, HovmoellerFeature feature) {
+        TimeAxis domainTimeAxis = feature.getDomain().getTimeAxis();
+        Extent<DateTime> domainTimeExtent = domainTimeAxis.getExtent();
+
+        long datasetTimeFrom = domainTimeExtent.getLow().getMillis();
+        long datasetTimeTo = domainTimeExtent.getHigh().getMillis();
+        // The time interval of the domain time axis
+        long tStep = (datasetTimeTo - datasetTimeFrom) / (domainTimeAxis.size() - 1);
+
+        Array2D<Number> data = feature.getValues(varId);
+
+        XYZDataset dataset = new HovmoellerDataset(data, datasetTimeFrom, tStep);
+
+        DateAxis tAxis = new DateAxis("Date");
+        SimpleDateFormat sdf = new SimpleDateFormat("YYYY-MM-dd HH:mm");
+        tAxis.setRange(new Date(datasetTimeFrom), new Date(datasetTimeTo + tStep));
+        tAxis.setDateFormatOverride(sdf);
+
+        NumberAxis locationAxis = new NumberAxis("Horizontal Positions");
+
+        locationAxis.setRange(0, data.getXSize());
+        // The min value of the data
+        Number minValue = getMinValueOfArray2D(data);
+        // The max value of the data
+        Number maxValue = getMaxValueOfArray2D(data);
+
+        boolean logarithmic = false;
+        ColourScale colourscale = new ColourScale(minValue.floatValue(), maxValue.floatValue(),
+                logarithmic);
+        // Use the default rainbow colour scheme.
+        ColourScheme colourscheme = new SegmentColourScheme(colourscale, Color.blue, Color.red,
+                null, ColourPalette.DEFAULT_PALETTE_NAME, 60);
+        PaintScale paintscale = Charting.createPaintScale(colourscheme);
+
+        org.jfree.data.Range colorBarRange = new org.jfree.data.Range(minValue.floatValue(),
+                maxValue.floatValue());
+
+        NumberAxis scaleAxis = new NumberAxis();
+        scaleAxis.setRange(colorBarRange);
+        PaintScaleLegend paintScaleLegend = new PaintScaleLegend(paintscale, scaleAxis);
+        paintScaleLegend.setPosition(RectangleEdge.BOTTOM);
+        
+        XYBlockRenderer xyblockrenderer = new XYBlockRenderer();
+
+        double yRange = xyblockrenderer.findRangeBounds(dataset).getLength();
+        xyblockrenderer.setBlockHeight(yRange);
+
+        double xRange = (maxValue.doubleValue() - minValue.doubleValue()) / (data.getXSize());
+        xyblockrenderer.setBlockWidth(xRange);
+
+        xyblockrenderer.setPaintScale(paintscale);
+        //The default anchor position is RectangleAnchor.CENTER. Change it!
+        xyblockrenderer.setBlockAnchor(RectangleAnchor.BOTTOM_LEFT);
+
+        XYPlot plot = new XYPlot(dataset, locationAxis, tAxis, xyblockrenderer);
+        plot.setDomainGridlinesVisible(false);
+        JFreeChart chart = new JFreeChart(plot);
+        chart.removeLegend();
+        chart.addSubtitle(paintScaleLegend);
+
+        return chart.createBufferedImage(500, 400);
+    }
+
+    /**
+     * Get the minimum value of {@link Array2D}.
+     * 
+     * @param data
+     *            An Array2D array.
+     * 
+     * @return The minimum value of the given array.
+     */
+    private static Number getMinValueOfArray2D(Array2D<Number> data) {
+        int xsize = data.getXSize();
+        int ysize = data.getYSize();
+        Number minValue = Double.MAX_VALUE;
+        for (int i = 0; i < xsize; i++) {
+            for (int j = 0; j < ysize; j++) {
+                double temp = data.get(j, i).doubleValue();
+                if (temp < minValue.doubleValue()) {
+                    minValue = temp;
+                }
+            }
+        }
+        return minValue;
+    }
+
+    /**
+     * Get the maximum value of {@link Array2D}.
+     * 
+     * @param data
+     *            An Array2D array.
+     * 
+     * @return The maximum value of the given array.
+     */
+    private static Number getMaxValueOfArray2D(Array2D<Number> data) {
+        int xsize = data.getXSize();
+        int ysize = data.getYSize();
+        Number maxValue = Double.MIN_VALUE;
+        for (int i = 0; i < xsize; i++) {
+            for (int j = 0; j < ysize; j++) {
+                double temp = data.get(j, i).doubleValue();
+                if (temp > maxValue.doubleValue()) {
+                    maxValue = temp;
+                }
+            }
+        }
+        return maxValue;
+    }
+
+    /**
+     * An implementation of {@link AbstractXYZDataset}, which contains the
+     * values of a variable Hovmoeller feature. The values in this dataset are
+     * to be used to draw the Hovmoeller plot.
+     * 
+     */
+    private static class HovmoellerDataset extends AbstractXYZDataset {
+        private static final long serialVersionUID = 1L;
+        // The values of numbers on X-axis.
+        private final int xSize;
+
+        // The values on the Z-axis.
+        private final Array2D<Number> data;
+
+        // The values of numbers on Y-axis.
+        private final int ySize;
+
+        // The starting value on the Y-axis.
+        private final long beginTime;
+        // The interval between the adjacent values on the Y-axis.
+        private final long timeStep;
+
+        public HovmoellerDataset(Array2D<Number> data, long tStart, long tStep) {
+            this.data = data;
+            xSize = data.getXSize();
+            ySize = data.getYSize();
+            beginTime = tStart;
+            timeStep = tStep;
+        }
+
+        @Override
+        public int getSeriesCount() {
+            return 1;
+        }
+
+        @Override
+        public String getSeriesKey(int series) {
+            checkSeries(series);
+            return "Hovmoeller section";
+        }
+
+        @Override
+        public int getItemCount(int series) {
+            checkSeries(series);
+            return xSize * ySize;
+        }
+
+        @Override
+        public Number getX(int series, int item) {
+            checkSeries(series);
+
+            /*
+             * The x coordinate is just the integer index of the point along the
+             * horizontal path.
+             */
+
+            return item % xSize;
+        }
+
+        /**
+         * Get the value of time represented by a Long number.
+         */
+        @Override
+        public Number getY(int series, int item) {
+            checkSeries(series);
+            int yIndex = item / xSize;
+            return yIndex * timeStep + beginTime;
+        }
+
+        /**
+         * Gets the data value corresponding with the given Horizontal position
+         * at the time.
+         */
+        @Override
+        public Number getZ(int series, int item) {
+            checkSeries(series);
+            int xIndex = item % xSize;
+            int yIndex = item / xSize;
+
+            return data.get(yIndex, xIndex);
+        }
+
+        /**
+         * @throws IllegalArgumentException
+         *             if the argument is not zero.
+         */
+        private static void checkSeries(int series) {
+            if (series != 0)
+                throw new IllegalArgumentException("One Series only. It must be zero");
+        }
     }
 }

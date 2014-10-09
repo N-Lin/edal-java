@@ -54,7 +54,6 @@ import uk.ac.rdg.resc.edal.dataset.AbstractGridDataset;
 import uk.ac.rdg.resc.edal.dataset.Dataset;
 import uk.ac.rdg.resc.edal.dataset.plugins.VectorPlugin;
 import uk.ac.rdg.resc.edal.domain.Extent;
-import uk.ac.rdg.resc.edal.domain.HorizontalDomain;
 import uk.ac.rdg.resc.edal.domain.HovmoellerDomain;
 import uk.ac.rdg.resc.edal.domain.MapDomain;
 import uk.ac.rdg.resc.edal.domain.MapDomainImpl;
@@ -70,7 +69,6 @@ import uk.ac.rdg.resc.edal.feature.TrajectoryFeature;
 import uk.ac.rdg.resc.edal.geometry.BoundingBox;
 import uk.ac.rdg.resc.edal.geometry.BoundingBoxImpl;
 import uk.ac.rdg.resc.edal.grid.GridCell2D;
-import uk.ac.rdg.resc.edal.grid.HorizontalGrid;
 import uk.ac.rdg.resc.edal.grid.RectilinearGrid;
 import uk.ac.rdg.resc.edal.grid.RegularGridImpl;
 import uk.ac.rdg.resc.edal.grid.VerticalAxis;
@@ -351,12 +349,12 @@ public class RectilinearGridDatasetTest {
         // have to use bbox. replace it with null throw NullPointerExcpetion,
         PlottingDomainParams params = new PlottingDomainParams(1, 1, bbox, datasetZExtent,
                 datasetTExtent, hPos, zPos, tValue);
-        Exception caughtEx =null;
+        Exception caughtEx = null;
         // the statement below catches an IllegalArgumentException
         try {
             dataset.extractMapFeatures(null, params);
         } catch (IllegalArgumentException e) {
-            caughtEx =e;
+            caughtEx = e;
         }
         assertNotNull(caughtEx);
         // depth value is out bound of zAxis
@@ -505,7 +503,7 @@ public class RectilinearGridDatasetTest {
             GridCoordinates2D gCoordinate = cell.getGridCoordinates();
             int xIndex = gCoordinate.getX();
             int yIndex = gCoordinate.getY();
-            HorizontalPosition hPos =cell.getCentre();
+            HorizontalPosition hPos = cell.getCentre();
             PlottingDomainParams params = new PlottingDomainParams(1, 1, null, zExtent,
                     datasetTExtent, hPos, null, null);
             Collection<? extends PointSeriesFeature> timeSeriesFeatures = dataset
@@ -584,7 +582,7 @@ public class RectilinearGridDatasetTest {
         if (vAxis.contains(targetZ)) {
             int zIndex = vAxis.findIndexOf(targetZ);
             for (GridCell2D cell : samplePoints) {
-                HorizontalPosition hPos =cell.getCentre();
+                HorizontalPosition hPos = cell.getCentre();
                 PlottingDomainParams params = new PlottingDomainParams(1, 1, null, null,
                         datasetTExtent, hPos, targetZ, null);
                 Collection<? extends PointSeriesFeature> timeSeriesFeatures = dataset
@@ -601,7 +599,7 @@ public class RectilinearGridDatasetTest {
             }
         } else {
             for (GridCell2D cell : samplePoints) {
-                HorizontalPosition hPos =cell.getCentre();
+                HorizontalPosition hPos = cell.getCentre();
                 PlottingDomainParams params = new PlottingDomainParams(1, 1, null, null,
                         datasetTExtent, hPos, targetZ, null);
                 Collection<? extends PointSeriesFeature> timeSeriesFeatures = dataset
@@ -713,7 +711,7 @@ public class RectilinearGridDatasetTest {
             GridCoordinates2D gCoordinate = cell.getGridCoordinates();
             int xIndex = gCoordinate.getX();
             int yIndex = gCoordinate.getY();
-            HorizontalPosition hPos =cell.getCentre();
+            HorizontalPosition hPos = cell.getCentre();
             PlottingDomainParams params = new PlottingDomainParams(1, 1, null, datasetZExtent,
                     tExtent, hPos, null, null);
             Collection<? extends PointSeriesFeature> timeSeriesFeatures = dataset
@@ -1008,7 +1006,7 @@ public class RectilinearGridDatasetTest {
             GridCoordinates2D gCoordinate = cell.getGridCoordinates();
             int xIndex = gCoordinate.getX();
             int yIndex = gCoordinate.getY();
-            HorizontalPosition hPos =cell.getCentre();
+            HorizontalPosition hPos = cell.getCentre();
             PlottingDomainParams params = new PlottingDomainParams(1, 1, null, datasetZExtent,
                     tExtent, hPos, null, targetT);
             Collection<? extends ProfileFeature> profileFeatures = dataset.extractProfileFeatures(
@@ -1187,29 +1185,103 @@ public class RectilinearGridDatasetTest {
             }
         }
     }
-    
+
+    /**
+     * Basic test (time values on the given time axis is same as these on the
+     * time axis of the dataset) to extract a Hovmoeller feature by calling
+     * {@link AbstractGridDataset#extraceProfileFeatures} method.
+     * 
+     * @throws DataReadingExcpetion
+     *             If there is a problem reading the underlying data
+     */
     @Test
     public void extractHovmoellerFeatureTest() throws DataReadingException {
-        HorizontalPosition h1 =new HorizontalPosition(102.2, 33.6, crs);
-        HorizontalPosition h2 =new HorizontalPosition(122.4, 46.8, crs);
+        HorizontalPosition pos1 = new HorizontalPosition(102.2, 33.6, crs);
+        HorizontalPosition pos2 = new HorizontalPosition(122.4, 46.8, crs);
         List<HorizontalPosition> lineString = new ArrayList<>();
-        lineString.add(h1);
-        lineString.add(h2);
+        lineString.add(pos1);
+        lineString.add(pos2);
 
-        HovmoellerDomain domain =new HovmoellerDomain(lineString, tAxis);
+        List<DateTime> tAxisValues = new ArrayList<>();
+
+        int numberOfHorizontalPositions = lineString.size();
+        int numberOfTimes = 5;
+
+        for (int i = 0; i < numberOfTimes; i++) {
+            // These values are same as these on the time axis of the dataset
+            tAxisValues.add(new DateTime(2000, 01, 01 + i, 00, 00, chrnology));
+        }
+        TimeAxis tAxis = new TimeAxisImpl("time", tAxisValues);
+
+        HovmoellerDomain hovmoellerDomain = new HovmoellerDomain(lineString, tAxis);
+        // A variable whose Hovmoeller feature is to be extracted.
+        String varId = "vLon";
+
+        /*
+         * Cast dataset to the type of AbstractGridDataset as it hasn't the
+         * extractHovmoellerFeature method.
+         */
         AbstractGridDataset data = (AbstractGridDataset) dataset;
-        RectilinearGrid grid =(RectilinearGrid) data.getVariableMetadata("vLon").getHorizontalDomain();
-        //grid.getXAxis()
-System.out.println("y index of "+ grid.findIndexOf(h1).getX());
-System.out.println("y index of "+ grid.getXAxis().findIndexOf(122.4));
-        HovmoellerFeature hFeatures = data.extractHovmollerFeatures(null, domain);
-        //System.out.println(hFeatures.getValues("vLon").getYSize());
-        Array2D<Number> results =hFeatures.getValues("vLon");
-        for(int i=0; i<2; i++){
-            for(int j=0; j<10; j++){
-                System.out.println(results.get(j,i));
+
+        RectilinearGrid grid = (RectilinearGrid) data.getVariableMetadata(varId)
+                .getHorizontalDomain();
+        /*
+         * Find the grid cells of the given horizontal positions as the feature
+         * values are related to their cells coordinates.
+         */
+        List<GridCoordinates2D> coordinates = new ArrayList<>();
+        for (HorizontalPosition pos : lineString) {
+            coordinates.add(getCellContainThePosition(grid, pos).getGridCoordinates());
+        }
+
+        HovmoellerFeature hovmoellerFeature = data.extractHovmollerFeatures(null, hovmoellerDomain);
+
+        Array2D<Number> results = hovmoellerFeature.getValues(varId);
+        for (int i = 0; i < numberOfHorizontalPositions; i++) {
+            int xindex = coordinates.get(i).getX();
+            float expectedValue = 100.0f * xindex / (xSize - 1);
+            for (int j = 0; j < numberOfTimes; j++) {
+                assertEquals(expectedValue, results.get(j, i).floatValue(), delta);
             }
         }
         
+        varId = "vLat";
+        results = hovmoellerFeature.getValues(varId);
+        for (int i = 0; i < numberOfHorizontalPositions; i++) {
+            int yindex = coordinates.get(i).getY();
+            float expectedValue = 100.0f * yindex / (ySize - 1);
+            for (int j = 0; j < numberOfTimes; j++) {
+                assertEquals(expectedValue, results.get(j, i).floatValue(), delta);
+            }
+        }
+        
+        varId = "vTime";
+        results = hovmoellerFeature.getValues(varId);
+        for (int i = 0; i < numberOfHorizontalPositions; i++) {
+            for (int j = 0; j < numberOfTimes; j++) {
+                float expectedValue = 100.0f * j / (tSize - 1);
+                assertEquals(expectedValue, results.get(j, i).floatValue(), delta);
+            }
+        }
+
+    }
+
+    /**
+     * Helper method: returning the grid cell of a horizontal position in a
+     * rectilinear grid.
+     * 
+     * @param grid
+     *            A rectilinear grid
+     * @param pos
+     *            A horizontal position
+     * @return The grid cell containing the horizontal position in the grid.
+     */
+    private static GridCell2D getCellContainThePosition(RectilinearGrid grid, HorizontalPosition pos) {
+        for (GridCell2D cell : grid.getDomainObjects()) {
+            if (cell.contains(pos)) {
+                return cell;
+            }
+        }
+        return null;
     }
 }
