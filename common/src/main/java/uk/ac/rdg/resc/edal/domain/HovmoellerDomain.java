@@ -33,10 +33,13 @@ import java.util.List;
 import org.joda.time.DateTime;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
+import uk.ac.rdg.resc.edal.geometry.LineString;
 import uk.ac.rdg.resc.edal.grid.TimeAxis;
 import uk.ac.rdg.resc.edal.position.HorizontalPosition;
 import uk.ac.rdg.resc.edal.position.GeoPosition;
 import uk.ac.rdg.resc.edal.domain.HovmoellerDomain.HovmoellerCell;
+import uk.ac.rdg.resc.edal.exceptions.InvalidCrsException;
+import uk.ac.rdg.resc.edal.exceptions.InvalidLineStringException;
 import uk.ac.rdg.resc.edal.util.Array2D;
 
 /**
@@ -49,8 +52,6 @@ public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerC
     /**
      * An entity in a Hovmoeller domain.
      * 
-     * @author Nan
-     *
      */
     public static class HovmoellerCell {
         public final HorizontalPosition horizontalPosition;
@@ -59,38 +60,6 @@ public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerC
         HovmoellerCell(HorizontalPosition hPos, Extent<DateTime> tExtent) {
             horizontalPosition = hPos;
             timeExtent = tExtent;
-        }
-    }
-
-    /**
-     * An implementation of Array2D containing HovmoellerDomain entity:
-     * HovmoellerCell.
-     * 
-     */
-    private class HovmoellerCellArray extends Array2D<HovmoellerCell> {
-        private HovmoellerCell[][] data;
-
-        public HovmoellerCellArray(int ysize, int xsize) {
-            super(ysize, xsize);
-            data = new HovmoellerCell[ysize][xsize];
-        }
-
-        @Override
-        public HovmoellerCell get(int... coords) {
-            if (coords.length != 2) {
-                throw new IllegalArgumentException("Wrong number of co-ordinates (" + coords.length
-                        + ") for this Array (needs 2)");
-            }
-            return data[coords[Y_IND]][coords[X_IND]];
-        }
-
-        @Override
-        public void set(HovmoellerCell value, int... coords) {
-            if (coords.length != 2) {
-                throw new IllegalArgumentException("Wrong number of co-ordinates (" + coords.length
-                        + ") for this Array (needs 2)");
-            }
-            data[coords[Y_IND]][coords[X_IND]] = value;
         }
     }
 
@@ -106,15 +75,35 @@ public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerC
          * assume these points' crs is identical as the algorithm can covert
          * different crs into a common crs.
          */
-        int numberOfTimeValues = tAxis.size();
-        int numberOfPoints = pointsOnLineString.size();
+        final int numberOfTimeValues = tAxis.size();
+        final int numberOfPoints = pointsOnLineString.size();
 
         if (numberOfPoints > 0 && numberOfTimeValues > 0) {
             crs = pointsOnLineString.get(0).getCoordinateReferenceSystem();
             this.pointsOnLineString = pointsOnLineString;
             this.tAxis = tAxis;
 
-            domainObjects = new HovmoellerCellArray(numberOfTimeValues, numberOfPoints);
+            domainObjects = new Array2D<HovmoellerCell>(numberOfTimeValues, numberOfPoints) {
+                private HovmoellerCell[][] data = new HovmoellerCell[numberOfTimeValues][numberOfPoints];
+
+                @Override
+                public HovmoellerCell get(int... coords) {
+                    if (coords.length != 2) {
+                        throw new IllegalArgumentException("Wrong number of co-ordinates ("
+                                + coords.length + ") for this Array (needs 2)");
+                    }
+                    return data[coords[Y_IND]][coords[X_IND]];
+                }
+
+                @Override
+                public void set(HovmoellerCell value, int... coords) {
+                    if (coords.length != 2) {
+                        throw new IllegalArgumentException("Wrong number of co-ordinates ("
+                                + coords.length + ") for this Array (needs 2)");
+                    }
+                    data[coords[Y_IND]][coords[X_IND]] = value;
+                }
+            };
 
             for (int i = 0; i < numberOfPoints; i++) {
                 for (int j = 0; j < numberOfTimeValues; j++) {
@@ -199,12 +188,36 @@ public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerC
     public TimeAxis getTimeAxis() {
         return tAxis;
     }
-    
-    public int getXsize(){
+
+    public int getNumberOfPoints() {
         return pointsOnLineString.size();
     }
-    
-    public int getYsize(){
+
+    public int getNumberOfTimes() {
         return tAxis.size();
+    }
+    
+    public LineString getLineString(){
+        if(pointsOnLineString ==null || pointsOnLineString.size()==0){
+            return null;
+        }
+        else{
+            StringBuilder pointsString =new StringBuilder();
+            for(HorizontalPosition pos : pointsOnLineString){
+                pointsString.append(pos.getX()+" "+pos.getY()+",");
+            }
+            //delete the last unnecessary ","
+            pointsString.deleteCharAt(pointsString.length() -1);
+            try{
+                return new LineString(pointsString.toString(), crs);
+            }catch(InvalidLineStringException ie){
+                System.out.println("Encounter an invalid line string." );
+                ie.printStackTrace();
+                return null;
+            }catch(InvalidCrsException e){
+                System.out.println("Not a valid CRS!");
+                return null;
+            }
+        }
     }
 }

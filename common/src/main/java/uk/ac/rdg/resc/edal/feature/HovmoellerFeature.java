@@ -37,7 +37,8 @@ import uk.ac.rdg.resc.edal.util.Array2D;
 import java.util.Map;
 
 /**
- * A measurement of a time series along a line string inside the grid.
+ * A measurement of a time series along a line string inside the horizontal
+ * grid.
  * 
  * @author Nan
  */
