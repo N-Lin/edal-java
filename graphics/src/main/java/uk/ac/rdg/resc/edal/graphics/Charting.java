@@ -848,9 +848,9 @@ final public class Charting {
      * @throws InvalidCrsException
      *             if the given crs is not a right crs.
      * 
-     * @return The plot
+     * @return The plot.
      */
-    public static BufferedImage plotHovmoellerFeature(final String varId,
+    public static JFreeChart plotHovmoellerFeature(final String varId,
             final HovmoellerFeature feature, final ColourScheme colourscheme,
             String copyrightStatement) throws InvalidLineStringException, InvalidCrsException {
 
@@ -891,8 +891,9 @@ final public class Charting {
             }
         }
         /*
-         * An integer is used to time the minimum distance between mid points.
-         * After it the result should be greater than one.
+         * An integer is used to time the minimum distance (always less than
+         * one) between mid points. After the operation, the result should be
+         * greater than one.
          */
         int multipBase = 100;
         // Tick unit on the x-axis of the plot.
@@ -908,10 +909,9 @@ final public class Charting {
         }
         // An array store the Hovmoeller strips' width.
         int[] columnsWidthInIntegerUnits = new int[numberOfPointsOnLineString];
-        // int total = 0;
+
         for (int i = 0; i < numberOfPointsOnLineString; i++) {
             columnsWidthInIntegerUnits[i] = (int) (distancesBetweenMidPoints[i] * multipBase);
-            // total += columnsWidthInIntegerUnits[i];
         }
 
         TimeAxis domainTimeAxis = feature.getDomain().getTimeAxis();
@@ -1096,7 +1096,7 @@ final public class Charting {
             chart.addSubtitle(textTitle);
         }
 
-        return chart.createBufferedImage(800, 600);
+        return chart;
     }
 
     /**
@@ -1161,21 +1161,25 @@ final public class Charting {
     /**
      * In the give array, data, the index numbers on the x-axis reflect the
      * point numbers on the line string. As such, the width of the Hovmoeller
-     * plot will be identical. Some data have to bed padded into the array to
-     * which reflect the various width according to the distance among the
-     * points. For example, a line sting is made up of three points. The
-     * distance between point 0 and 1 is two while the distance between point 1
-     * and 2 is three. The x size of the new created array will increase from 2
-     * to 5. The y size need not be changed. For data (x, y) in the new array
-     * and the data (m ,n) in the original array, the relation is: (x, y) equals
-     * (m,n) (x =0,1 ,m=0, and y=n); (x, y) equals (m,n) (x =2,3,4 ,m=1, and
-     * y=n).
+     * plot will be identical. Some data have to be padded into the array to
+     * reflect the various width according to the distances among the points.
+     * For example, a line sting is made up of three points. The distance
+     * between point 0 and 1 is two while the distance between point 1 and 2 is
+     * three. The x size of the new created array will increase from 2 to 5. The
+     * y size need not be changed. For data (x, y) in the new array and the data
+     * (m ,n) in the original array, the relation is: (x, y) equals (m,n) (x
+     * =0,1 ,m=0, and y=n); (x, y) equals (m,n) (x =2,3,4 ,m=1, and y=n).
      * 
      * @param data
+     *            The original Array2D array containing the Hovmoeller feature
+     *            data.
      * 
      * @param columnsWidthInIntegerUnits
+     *            An array stores the Hovmoeller strips' width in arbitrary
+     *            integer units.
      * 
-     * @return
+     * @return An Array2D array based on the input 'data'. Its size on x-axis
+     *         reflects the Hovmoeller strips' widths.
      */
     private static Array2D<Number> padData(final Array2D<Number> data,
             int[] columnsWidthInIntegerUnits) {

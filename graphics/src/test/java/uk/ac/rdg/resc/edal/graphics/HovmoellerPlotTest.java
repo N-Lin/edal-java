@@ -46,8 +46,8 @@ public class HovmoellerPlotTest {
     public void setUp() throws Exception {
         // The number of time values
 
-        int gridXsize = 10;
-        int gridYsize = 8;
+        int gridXsize = 7;
+        int gridYsize = 6;
         // The number of positions values
         int hovmoellerYsize = 9;
         int hovmoellerXsize = gridXsize * gridYsize;
@@ -102,11 +102,11 @@ public class HovmoellerPlotTest {
     @Test
     public void test() throws InvalidLineStringException, InvalidCrsException{
         boolean logarithmic = false;
-        ColourScale colourscale = new ColourScale(25.0f, 200.0f, logarithmic);
+        ColourScale colourscale = new ColourScale(25.0f, 120.0f, logarithmic);
         // Use the default rainbow colour scheme.
         ColourScheme colourscheme = new SegmentColourScheme(colourscale, Color.blue, Color.red,
                 Color.yellow, ColourPalette.DEFAULT_PALETTE_NAME, 60);
-        BufferedImage image = Charting.plotHovmoellerFeature("vLon", feature, colourscheme, "@ReSC");
+        BufferedImage image = Charting.plotHovmoellerFeature("vLon", feature, colourscheme, "@ReSC").createBufferedImage(800,  600);
         // Currently, we use naked eyes to check the image.
         try {
             // retrieve image
