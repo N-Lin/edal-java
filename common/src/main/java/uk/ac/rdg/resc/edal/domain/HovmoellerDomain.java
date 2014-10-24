@@ -107,7 +107,6 @@ public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerC
 
             for (int i = 0; i < numberOfPoints; i++) {
                 for (int j = 0; j < numberOfTimeValues; j++) {
-                    // they are horizontal points so z values is set to null
                     domainObjects.set(
                             new HovmoellerCell(pointsOnLineString.get(i), tAxis
                                     .getCoordinateBounds(j)), j, i);
@@ -121,10 +120,18 @@ public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerC
 
     }
 
+    /**
+     * Test if the Hovmoeller domain contains a given {@link GeoPosition}.
+     * 
+     * @param p
+     *            A given GeoPosition.
+     * @return true if the Hovmoeller domain contains the GeoPosition otherwise
+     *         false.
+     */
     public boolean contains(GeoPosition p) {
-        for (int i = 0; i < domainObjects.size(); i++) {
-            if (domainObjects.get(i).horizontalPosition.equals(p.getHorizontalPosition())
-                    && domainObjects.get(i).timeExtent.contains(p.getTime())) {
+        for (HovmoellerCell cell : domainObjects) {
+            if (cell.horizontalPosition.equals(p.getHorizontalPosition())
+                    && cell.timeExtent.contains(p.getTime())) {
                 return true;
             }
         }
@@ -196,25 +203,29 @@ public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerC
     public int getNumberOfTimes() {
         return tAxis.size();
     }
-    
-    public LineString getLineString(){
-        if(pointsOnLineString ==null || pointsOnLineString.size()==0){
+
+    /**
+     * Get the line string in the Hovmoeller domain.
+     * 
+     * @return An object of {@link LineString}.
+     */
+    public LineString getLineString() {
+        if (pointsOnLineString == null || pointsOnLineString.size() == 0) {
             return null;
-        }
-        else{
-            StringBuilder pointsString =new StringBuilder();
-            for(HorizontalPosition pos : pointsOnLineString){
-                pointsString.append(pos.getX()+" "+pos.getY()+",");
+        } else {
+            StringBuilder pointsString = new StringBuilder();
+            for (HorizontalPosition pos : pointsOnLineString) {
+                pointsString.append(pos.getX() + " " + pos.getY() + ",");
             }
-            //delete the last unnecessary ","
-            pointsString.deleteCharAt(pointsString.length() -1);
-            try{
+            // delete the last unnecessary ","
+            pointsString.deleteCharAt(pointsString.length() - 1);
+            try {
                 return new LineString(pointsString.toString(), crs);
-            }catch(InvalidLineStringException ie){
-                System.out.println("Encounter an invalid line string." );
+            } catch (InvalidLineStringException ie) {
+                System.out.println("Encounter an invalid line string.");
                 ie.printStackTrace();
                 return null;
-            }catch(InvalidCrsException e){
+            } catch (InvalidCrsException e) {
                 System.out.println("Not a valid CRS!");
                 return null;
             }
