@@ -31,7 +31,7 @@ package uk.ac.rdg.resc.edal.graphics;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.geom.Ellipse2D;
-import java.awt.image.BufferedImage;
+import java.math.BigInteger;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
@@ -88,8 +88,6 @@ import org.joda.time.Chronology;
 import org.joda.time.DateTime;
 
 import uk.ac.rdg.resc.edal.domain.Extent;
-import uk.ac.rdg.resc.edal.exceptions.InvalidCrsException;
-import uk.ac.rdg.resc.edal.exceptions.InvalidLineStringException;
 import uk.ac.rdg.resc.edal.exceptions.MismatchedCrsException;
 import uk.ac.rdg.resc.edal.feature.Feature;
 import uk.ac.rdg.resc.edal.feature.HovmoellerFeature;
@@ -840,51 +838,87 @@ final public class Charting {
      *            A variable name whose the corresponding Hovmoeller feature
      *            will be plotted.
      * @param feature
-     *            A Hovmoeller feature
+     *            A {@link HovmoellerFeature} feature to be plotted.
      * 
-     * @throws InvalidLineStringException
-     *             if the given line string is not a proper line string.
+     * @param colourScheme
+     *            The {@link ColourScheme} to use for the plot.
      * 
-     * @throws InvalidCrsException
-     *             if the given crs is not a right crs.
+     * @param copyrightStatement
+     *            A copyright notice to display under the graph.
      * 
      * @return The plot.
      */
     public static JFreeChart plotHovmoellerFeature(final String varId,
             final HovmoellerFeature feature, final ColourScheme colourscheme,
-            String copyrightStatement) throws InvalidLineStringException, InvalidCrsException {
-
+            String copyrightStatement) {
+        /*
+         * We use xyblockrenderer to draw a Hovmoeller diagram. The required
+         * data is in an instance of XYZDataset. Given the nature of Hovmoeller
+         * plot, the width and the height of a block, at the position (i, j) in
+         * the plot, in most of the case, are not identical (the index i is for
+         * the position of a point on the line string while the the index j is
+         * for the position of a time on the time axis). Actually, the width of
+         * the block at (i,j) is related to the size of the i-th extent of the
+         * line string while the height of the block is related to the size of
+         * the j-th extent of the time axis. However, xyblockrenderer sets every
+         * block in the plot the identical height and width. To work out a
+         * solution, we have to re-size the data store in the instance of
+         * XYZDataset by padding into data. The following example describes how
+         * to present the various widths of blocks in a Hovmoeller diagram. At
+         * position (i, j), the size of the i-th extent on the line string is x.
+         * At position (m, n), the size of the m-th extent on the line string is
+         * y. The unit of these sizes are the percentage of the whole line
+         * string. We can calculate the minimum value of these extents values.
+         * Say, it is x. Then we find a value, MULTIPLEBASE, which is multiple
+         * of the number TEN. The result of rounding off to to an integer when x
+         * times MULTIPLEBASE must be greater than ONE. For each extent on the
+         * line string, the value of it times MULTIPLEBASE and then round off to
+         * an integer. After this, the sizes of extents on the line string
+         * become integers. The value of x is transformed, say, to 5 while y
+         * becomes 7. We would say the unit of the extent is ONE. For the data
+         * at (i, j), we pad another 4 portions of identical data into the new
+         * data store. Therefore, in the new data store, the positions (i,j) to
+         * (i+4, j) have the identical data. For the time data on y-axis, they
+         * are presented by long numbers. We need to find out the highest common
+         * factor (HCF) of the time extents on the time axis. The value of HCF
+         * becomes the unit of the time extents. Then each time extent can be
+         * presented by an integer. We can use the similar way to pad data onto
+         * y-axis. When we have a new data store available, we use it to plot
+         * the Hovmoeller diagram.
+         */
         final long HOUR = 60L * 60L * 1000L;
         final long DAY = 24L * HOUR;
 
         LineString lineString = feature.getDomain().getLineString();
-        int numberOfPointsOnLineString = lineString.getControlPoints().size();
-        /*
-         * an array stores the distance among adjacent points. The first one is
-         * always ZERO.
-         */
-        double[] distancesBetweenAdjacentPoints = new double[numberOfPointsOnLineString];
 
-        for (int i = 0; i < numberOfPointsOnLineString; i++) {
-            distancesBetweenAdjacentPoints[i] = lineString.getFractionalControlPointDistance(i);
+        // The number of control points on the line string
+        int numberOfPoints = lineString.getControlPoints().size();
+        /*
+         * An array stores the distances to the first point (index 0). As such,
+         * the value of the first element is always ZERO. The distance unit is
+         * the per cent of the whole distance of ONE.
+         */
+        double[] distances = new double[numberOfPoints];
+
+        for (int i = 0; i < numberOfPoints; i++) {
+            distances[i] = lineString.getFractionalControlPointDistance(i);
         }
         /*
          * Project the points of the line string onto a line. The distance
          * between two points on the line is identical to the distance on the
-         * line string. An array stores the mid points among these points.
+         * line string. An array stores the distances of mid points to the first
+         * point on the line string.
          */
-        double[] midPoints = getDistanceBetweenAdjacentMidPointsOnLineString(distancesBetweenAdjacentPoints);
+        double[] midPoints = getMidPoints(distances);
 
         /* An array stores the distances between two adjacent mid points. */
-        double[] distancesBetweenMidPoints = new double[numberOfPointsOnLineString];
+        double[] distancesBetweenMidPoints = new double[numberOfPoints];
         distancesBetweenMidPoints[0] = midPoints[0];
         /*
-         * A variable records the minimum distance between mid points. the value
-         * is used as the base unit of the Hovmoeller strip. It means the width
-         * of Hovmoeller strips is multiple (in integer) of the unit.
+         * A variable records the minimum distance between mid points.
          */
         double minMidPointDistance = Double.MAX_VALUE;
-        for (int i = 1; i < numberOfPointsOnLineString; i++) {
+        for (int i = 1; i < numberOfPoints; i++) {
             distancesBetweenMidPoints[i] = midPoints[i] - midPoints[i - 1];
             if (distancesBetweenMidPoints[i] < minMidPointDistance) {
                 minMidPointDistance = distancesBetweenMidPoints[i];
@@ -892,139 +926,102 @@ final public class Charting {
         }
         /*
          * An integer is used to time the minimum distance (always less than
-         * one) between mid points. After the operation, the result should be
-         * greater than one.
+         * one) between mid points. When the integer times such an minimum
+         * distance, the round-off result should be greater than ONE.
          */
-        int multipBase = 100;
+        int multipleOfTen = 100;
         // Tick unit on the x-axis of the plot.
         double tickUnit = 25.0;
 
+        /*
+         * If there are many points on the line string, the minimum distance
+         * between mid points possibly is small, then try a large number which
+         * is multiple of 10 .
+         */
         if (minMidPointDistance > 0.001 && minMidPointDistance < 0.01) {
-            multipBase = 1000;
+            multipleOfTen = 1000;
             tickUnit = 250.0;
         }
         if (minMidPointDistance > 0.0001 && minMidPointDistance < 0.001) {
-            multipBase = 10000;
+            multipleOfTen = 10000;
             tickUnit = 2000.0;
         }
-        // An array store the Hovmoeller strips' width.
-        int[] columnsWidthInIntegerUnits = new int[numberOfPointsOnLineString];
+        // An array store the widths of the blocks in an integer unit.
+        int[] distancesInIntegerUnit = new int[numberOfPoints];
 
-        for (int i = 0; i < numberOfPointsOnLineString; i++) {
-            columnsWidthInIntegerUnits[i] = (int) (distancesBetweenMidPoints[i] * multipBase);
+        for (int i = 0; i < numberOfPoints; i++) {
+            distancesInIntegerUnit[i] = (int) (distancesBetweenMidPoints[i] * multipleOfTen);
         }
 
         TimeAxis domainTimeAxis = feature.getDomain().getTimeAxis();
-        // Use Coordinate extent instead of axis values extent
-        Extent<DateTime> domainTimeExtent = domainTimeAxis.getCoordinateExtent();
+        Extent<DateTime> domainTimeExtent = domainTimeAxis.getExtent();
 
-        final long datasetTimeFrom = domainTimeExtent.getLow().getMillis();
-        final long datasetTimeTo = domainTimeExtent.getHigh().getMillis();
-        // The time interval of the domain time axis
+        int numOfTimes = domainTimeAxis.size();
+        // An array stores the times values on the time axis.
+        long[] timesValues = new long[numOfTimes];
+        for (int i = 0; i < numOfTimes; i++) {
+            timesValues[i] = domainTimeAxis.getCoordinateValue(i).getMillis();
+        }
+        long[] timesExtents = getExtentsValuesOnTimeAxis(timesValues);
 
-        final long tStep = (datasetTimeTo - datasetTimeFrom) / (domainTimeAxis.size());
-        // The data needs to be plotted.
-        final Array2D<Number> data = feature.getValues(varId);
+        /*
+         * The plot should cover the time axis's coordinate extent, so the
+         * starting time has to be modified. However, the ending time need not.
+         */
+        long datasetTimeFrom = domainTimeExtent.getLow().getMillis() - timesExtents[0];
+        long datasetTimeTo = domainTimeExtent.getHigh().getMillis();
 
-        /* The data is used by an XYZDataset implementation. */
-        final Array2D<Number> paddedData = padData(data, columnsWidthInIntegerUnits);
+        /*
+         * We modify the starting time, so the height of the first block has to
+         * be modified.
+         */
+        timesExtents[0] = timesExtents[0] * 2;
 
-        XYZDataset dataset = new AbstractXYZDataset() {
-            private static final long serialVersionUID = 1L;
+        // Find the highest common factor of times extents.
+        BigInteger commonFactor = BigInteger.valueOf(timesExtents[0]);
 
-            // The values on the Z-axis.
-            // private final Array2D<Number> paddeddata = paddedData;
+        for (int i = 1; i < numOfTimes; i++) {
+            commonFactor = commonFactor.gcd(BigInteger.valueOf(timesExtents[i]));
+        }
 
-            // The values of numbers on X-axis.
-            private final int xSize = paddedData.getXSize();
-            // The values of numbers on Y-axis.
+        // A variable for highest common factor of all time extents.
+        final long hcf = commonFactor.longValue();
+        // An array storing the heights of blocks in integer unit.
+        final int[] timesExtentsInIntegerUnit = new int[numOfTimes];
 
-            private final int ySize = paddedData.getYSize();
+        for (int i = 0; i < numOfTimes; i++) {
+            timesExtentsInIntegerUnit[i] = (int) (timesExtents[i] / hcf);
 
-            // The starting value on the Y-axis.
-            private final long beginTime = datasetTimeFrom;
-            // The interval between the adjacent values on the Y-axis.
-            private final long timeStep = tStep;
+        }
+        Array2D<Number> data = feature.getValues(varId);
+        // Create XYZdataset for xyblockrenderer.
+        XYZDataset dataset = new HovmoellerDataset(data, distancesInIntegerUnit,
+                timesExtentsInIntegerUnit, datasetTimeFrom, hcf);
 
-            @Override
-            public int getSeriesCount() {
-                return 1;
-            }
-
-            @Override
-            public String getSeriesKey(int series) {
-                checkSeries(series);
-                return "Hovmoeller section";
-            }
-
-            @Override
-            public int getItemCount(int series) {
-                checkSeries(series);
-                return xSize * ySize;
-            }
-
-            @Override
-            public Number getX(int series, int item) {
-                checkSeries(series);
-
-                /*
-                 * The x coordinate is just the integer index of the point along
-                 * the horizontal path.
-                 */
-                return item % xSize;
-            }
-
-            /**
-             * Get the value of time represented by a Long number.
-             */
-            @Override
-            public Number getY(int series, int item) {
-                checkSeries(series);
-                int yIndex = item / xSize;
-                return yIndex * timeStep + beginTime;
-            }
-
-            /**
-             * Gets the data value corresponding with the given Horizontal
-             * position and the time.
-             */
-            @Override
-            public Number getZ(int series, int item) {
-                checkSeries(series);
-                int xIndex = item % xSize;
-                int yIndex = item / xSize;
-
-                return paddedData.get(yIndex, xIndex);
-            }
-
-            /**
-             * @throws IllegalArgumentException
-             *             if the argument is not zero.
-             */
-            private void checkSeries(int series) {
-                if (series != 0)
-                    throw new IllegalArgumentException("One Series only. It must be zero");
-            }
-        };
-
-        SimpleDateFormat sdf = new SimpleDateFormat("YYYY-MM-dd HH:00");
+        SimpleDateFormat sdf = new SimpleDateFormat("YYYY-MM-dd HH:mm");
 
         DateAxis tAxis = new DateAxis("Date");
 
         tAxis.setRange(new Date(datasetTimeFrom), new Date(datasetTimeTo));
-        if (tStep == DAY || tStep > DAY) {
-            tAxis.setTickUnit(new DateTickUnit(DateTickUnitType.DAY, (int) (tStep / DAY)));
+
+        // Set proper tick unit for date (Y) axis
+        if (hcf > 11 * HOUR) {
+            int step = (int) (hcf / DAY);
+            if (step < 1) {
+                step = 1;
+            }
+            tAxis.setTickUnit(new DateTickUnit(DateTickUnitType.DAY, step));
         } else {
-            tAxis.setTickUnit(new DateTickUnit(DateTickUnitType.HOUR, (int) (tStep / HOUR)));
+            tAxis.setTickUnit(new DateTickUnit(DateTickUnitType.HOUR, (int) (hcf / HOUR)));
         }
+
         tAxis.setTickMarkPosition(DateTickMarkPosition.MIDDLE);
         tAxis.setDateFormatOverride(sdf);
 
         NumberAxis locationAxis = new NumberAxis("Distance along path (arbitrary units)");
 
-        locationAxis.setRange(0, multipBase);
+        locationAxis.setRange(0, multipleOfTen);
         locationAxis.setTickUnit(new NumberTickUnit(tickUnit));
-        // locationAxis.setTickLabelsVisible(false);
 
         // The min value of the data
         Number minValue = getMinValueOfArray2D(data);
@@ -1036,7 +1033,8 @@ final public class Charting {
         org.jfree.data.Range colorBarRange = new org.jfree.data.Range(minValue.floatValue(),
                 maxValue.floatValue());
 
-        NumberAxis scaleAxis = new NumberAxis(feature.getParameter(varId).getUnits());
+        NumberAxis scaleAxis = new NumberAxis(feature.getParameter(varId).getStandardName() + ": "
+                + feature.getParameter(varId).getUnits());
         scaleAxis.setAutoRange(false);
         scaleAxis.setRange(colorBarRange);
         PaintScaleLegend paintScaleLegend = new PaintScaleLegend(paintscale, scaleAxis);
@@ -1045,8 +1043,8 @@ final public class Charting {
 
         XYBlockRenderer xyblockrenderer = new XYBlockRenderer();
 
-        double yRange = xyblockrenderer.findRangeBounds(dataset).getLength();
-        xyblockrenderer.setBlockHeight(yRange);
+        xyblockrenderer.setBlockHeight(hcf);
+
         xyblockrenderer.setPaintScale(paintscale);
         // The default anchor position is RectangleAnchor.CENTER. Change it!
         xyblockrenderer.setBlockAnchor(RectangleAnchor.BOTTOM_LEFT);
@@ -1056,16 +1054,13 @@ final public class Charting {
 
         // A starting position of an interval marker.
         double start = 0.0;
-        /*
-         * A half width of Hovmoeller strip which is in front of the current
-         * strip.
-         */
+
+        // The first half width of a distance extent.
         double exgap = 0.0;
 
-        for (int i = 0; i < numberOfPointsOnLineString; i++) {
-            // The current half width of Hovmoeller strip.
-            double gap = columnsWidthInIntegerUnits[i] / 2.0;
-
+        for (int i = 0; i < numberOfPoints; i++) {
+            // The second half width of a distance extent.
+            double gap = distancesInIntegerUnit[i] / 2.0;
             IntervalMarker target = new IntervalMarker(start, start + exgap + gap);
             target.setPaint(TRANSPARENT);
             String label = "[" + printTwoDecimals(lineString.getControlPoints().get(i).getY())
@@ -1073,8 +1068,8 @@ final public class Charting {
             target.setLabel(label);
             target.setLabelFont(new Font("SansSerif", Font.ITALIC, 8));
             if (i % 2 == 0) {
-                target.setLabelAnchor(RectangleAnchor.TOP_LEFT);
-                target.setLabelTextAnchor(TextAnchor.TOP_LEFT);
+                target.setLabelAnchor(RectangleAnchor.TOP_RIGHT);
+                target.setLabelTextAnchor(TextAnchor.TOP_RIGHT);
             } else {
                 target.setLabelAnchor(RectangleAnchor.BOTTOM_RIGHT);
                 target.setLabelTextAnchor(TextAnchor.BOTTOM_RIGHT);
@@ -1140,67 +1135,193 @@ final public class Charting {
     }
 
     /**
-     * A helper method returning mid points on the line string.
+     * A helper method returning the distances of mid points to the first point
+     * on the line string.
      * 
      * @param distances
-     *            store each point's distance to the origin point on the line
-     *            string.
-     * @return an array stores the mid point's distance to the origin point on
-     *         the line string.
+     *            An array storing each control point's distance to the first
+     *            point on the line string.
+     * @return An array storing mid points' distances to the first point on the
+     *         line string.
      */
-    private static double[] getDistanceBetweenAdjacentMidPointsOnLineString(double[] distances) {
-        int numberOfDistances = distances.length;
-        double[] midPointsOnLineString = new double[numberOfDistances];
-        for (int i = 0; i < numberOfDistances - 1; i++) {
+    private static double[] getMidPoints(double[] distances) {
+        int numbDistances = distances.length;
+        double[] midPointsOnLineString = new double[numbDistances];
+        for (int i = 0; i < numbDistances - 1; i++) {
             midPointsOnLineString[i] = (distances[i] + distances[i + 1]) / 2.0;
         }
-        midPointsOnLineString[numberOfDistances - 1] = distances[numberOfDistances - 1];
+        midPointsOnLineString[numbDistances - 1] = distances[numbDistances - 1];
         return midPointsOnLineString;
     }
 
     /**
-     * In the give array, data, the index numbers on the x-axis reflect the
-     * point numbers on the line string. As such, the width of the Hovmoeller
-     * plot will be identical. Some data have to be padded into the array to
-     * reflect the various width according to the distances among the points.
-     * For example, a line sting is made up of three points. The distance
-     * between point 0 and 1 is two while the distance between point 1 and 2 is
-     * three. The x size of the new created array will increase from 2 to 5. The
-     * y size need not be changed. For data (x, y) in the new array and the data
-     * (m ,n) in the original array, the relation is: (x, y) equals (m,n) (x
-     * =0,1 ,m=0, and y=n); (x, y) equals (m,n) (x =2,3,4 ,m=1, and y=n).
+     * A helper method returning time extents on the time axis.
      * 
-     * @param data
-     *            The original Array2D array containing the Hovmoeller feature
-     *            data.
-     * 
-     * @param columnsWidthInIntegerUnits
-     *            An array stores the Hovmoeller strips' width in arbitrary
-     *            integer units.
-     * 
-     * @return An Array2D array based on the input 'data'. Its size on x-axis
-     *         reflects the Hovmoeller strips' widths.
+     * @param timesValues
+     *            An array storing times values on the time axis.
+     * @return An array storing time extents on the time axis.
      */
-    private static Array2D<Number> padData(final Array2D<Number> data,
-            int[] columnsWidthInIntegerUnits) {
-        int expandedXSize = 0;
-        for (int i = 0; i < columnsWidthInIntegerUnits.length; i++) {
-            expandedXSize += columnsWidthInIntegerUnits[i];
+    private static long[] getExtentsValuesOnTimeAxis(long[] timesValues) {
+        int numberOfTimes = timesValues.length;
+        long[] results = new long[numberOfTimes];
+        /*
+         * An time extent is divided into two parts by a time value on the time
+         * axis. A variable for the size of the first part of an extent. The
+         * very first extent only has the second part of the extent.
+         */
+        long firstHalf = 0;
+        for (int i = 0; i < numberOfTimes - 1; i++) {
+            // A variable for the size of the second part of an extent
+            long secondHalf = (timesValues[i + 1] - timesValues[i]) / 2;
+            results[i] = firstHalf + secondHalf;
+            firstHalf = secondHalf;
         }
-        int ySize = data.getYSize();
-        ValuesArray2D results = new ValuesArray2D(ySize, expandedXSize);
-
-        for (int i = 0; i < ySize; i++) {
-            int posOffset = 0;
-            for (int k = 0; k < data.getXSize(); k++) {
-                Number temp = data.get(i, k);
-                int newWidth = columnsWidthInIntegerUnits[k];
-                for (int j = 0; j < newWidth; j++) {
-                    results.set(temp, i, posOffset + j);
-                }
-                posOffset += newWidth;
-            }
-        }
+        results[numberOfTimes - 1] = firstHalf;
         return results;
+    }
+
+    /**
+     * An {@link XYZDataset} that is created by interpolating a set of values
+     * from a {@link HovmoellerDomain}.
+     */
+    private static class HovmoellerDataset extends AbstractXYZDataset {
+        private static final long serialVersionUID = 1L;
+
+        private Array2D<Number> datastore;
+
+        private int xSize;
+        private int ySize;
+        private long beginTime;
+        private long timeGapUnit;
+
+        HovmoellerDataset(Array2D<Number> data, int[] distancesInIntegerUnit,
+                int[] timesExtentsInIntegerUnit, long beginTime, long timeGapUnit) {
+            for (int i = 0; i < distancesInIntegerUnit.length; i++) {
+                xSize += distancesInIntegerUnit[i];
+            }
+            for (int i = 0; i < timesExtentsInIntegerUnit.length; i++) {
+                ySize += timesExtentsInIntegerUnit[i];
+            }
+            this.beginTime = beginTime;
+            this.timeGapUnit = timeGapUnit;
+            datastore = padData(data, distancesInIntegerUnit, timesExtentsInIntegerUnit);
+        }
+
+        /**
+         * In the give array, 'data', the index numbers on the x-axis reflect
+         * the point numbers on the line string. As such, the width of the
+         * Hovmoeller plot will be identical. Some data have to be padded into
+         * the array to reflect the various width according to the distances
+         * among the points. For example, a line sting is made up of three
+         * points. The distance between point 0 and 1 is two while the distance
+         * between point 1 and 2 is three. The x size of the new created array
+         * will increase from 2 to 5. For data (x, y) in the new array and the
+         * data (m ,n) in the original array, the relation is: (x, y) equals
+         * (m,n) (x =0,1 ,m=0, and y=n); (x, y) equals (m,n) (x =2,3,4 ,m=1, and
+         * y=n).
+         * 
+         * @param data
+         *            The original Array2D array containing the Hovmoeller
+         *            feature data.
+         * 
+         * @param distancesInIntegerUnit
+         *            An array stores the blocks'widths in Hovmoeller diagram in
+         *            arbitrary integer units.
+         * @param timesExtentsInIntegerUnit
+         *            An array stores the blockers' heights in Hovmoeller
+         *            diagram in arbitrary integer units.
+         * @return An Array2D array.
+         */
+        private Array2D<Number> padData(final Array2D<Number> data, int[] distancesInIntegerUnit,
+                int[] timesExtentsInIntegerUnit) {
+
+            Array2D<Number> results = new ValuesArray2D(ySize, xSize);
+
+            int posYOffset = 0;
+            int posXOffset = 0;
+
+            for (int i = 0; i < data.getYSize(); i++) {
+                int newHeight = timesExtentsInIntegerUnit[i];
+
+                for (int k = 0; k < data.getXSize(); k++) {
+                    Number temp = data.get(i, k);
+
+                    int newWidth = distancesInIntegerUnit[k];
+
+                    for (int m = 0; m < newHeight; m++) {
+
+                        for (int j = 0; j < newWidth; j++) {
+                            results.set(temp, m + posYOffset, posXOffset + j);
+                        }
+
+                    }
+                    posXOffset += newWidth;
+
+                }
+                posYOffset += newHeight;
+                posXOffset = 0;
+            }
+            return results;
+        }
+
+        @Override
+        public int getSeriesCount() {
+            return 1;
+        }
+
+        @Override
+        public String getSeriesKey(int series) {
+            checkSeries(series);
+            return "Hovmoeller section";
+        }
+
+        @Override
+        public int getItemCount(int series) {
+            checkSeries(series);
+            return xSize * ySize;
+        }
+
+        @Override
+        public Number getX(int series, int item) {
+            checkSeries(series);
+
+            /*
+             * The x coordinate is just the integer index of the point along the
+             * horizontal path.
+             */
+            return item % xSize;
+        }
+
+        /**
+         * Get the value of time represented by a Long number.
+         */
+        @Override
+        public Number getY(int series, int item) {
+            checkSeries(series);
+            int yIndex = item / xSize;
+            return yIndex * timeGapUnit + beginTime;
+        }
+
+        /**
+         * Gets the data value corresponding with the given Horizontal position
+         * and the time.
+         */
+        @Override
+        public Number getZ(int series, int item) {
+            checkSeries(series);
+            int xIndex = item % xSize;
+            int yIndex = item / xSize;
+
+            return datastore.get(yIndex, xIndex);
+        }
+
+        /**
+         * @throws IllegalArgumentException
+         *             if the argument is not zero.
+         */
+        private void checkSeries(int series) {
+            if (series != 0)
+                throw new IllegalArgumentException("One Series only. It must be zero");
+        }
     }
 }

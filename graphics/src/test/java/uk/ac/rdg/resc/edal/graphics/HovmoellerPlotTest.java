@@ -46,37 +46,42 @@ public class HovmoellerPlotTest {
     public void setUp() throws Exception {
         // The number of time values
 
-        int gridXsize = 7;
-        int gridYsize = 6;
+        int gridXsize = 3;
+        int gridYsize = 1;
         // The number of positions values
-        int hovmoellerYsize = 9;
+        int hovmoellerYsize = 5;
         int hovmoellerXsize = gridXsize * gridYsize;
         //int hovmoellerXsize = 3;
 
         List<HorizontalPosition> lineString = new ArrayList<>();
         
-        /*HorizontalPosition h1 = new HorizontalPosition(100.0, 30.0, crs);
+        HorizontalPosition h1 = new HorizontalPosition(100.0, 30.0, crs);
         lineString.add(h1);
         
-        HorizontalPosition h2 = new HorizontalPosition(104.0, 33.0, crs);
+        HorizontalPosition h2 = new HorizontalPosition(102.0, 30.0, crs);
         lineString.add(h2);
         
-        HorizontalPosition h3 = new HorizontalPosition(104.0, 38.0, crs);
-        lineString.add(h3);*/
+        HorizontalPosition h3 = new HorizontalPosition(105.0, 30.0, crs);
+        lineString.add(h3);
         
         // A simple line string making up of two points.
-        for (int i = 0; i < gridXsize; i++) {
+        /*for (int i = 0; i < gridXsize; i++) {
             for (int j = 0; j < gridYsize; j++) {
                 HorizontalPosition hPos = new HorizontalPosition(100.0 + i * 2.0 , 30 + j * 1.0 +i, crs);
                 lineString.add(hPos);
             }
-        }
+        }*/
 
         List<DateTime> tAxisValues = new ArrayList<>();
 
-        for (int i = 0; i < hovmoellerYsize; i++) {
+        /*for (int i = 0; i < hovmoellerYsize; i++) {
             tAxisValues.add(new DateTime(1994, 02, 02 + i, 12, 00, chrnology));
-        }
+        }*/
+        tAxisValues.add(new DateTime(1994, 02, 02 , 12, 00, chrnology));
+        tAxisValues.add(new DateTime(1994, 02, 03 , 12, 00, chrnology));
+        tAxisValues.add(new DateTime(1994, 02, 05 , 12, 00, chrnology));
+        tAxisValues.add(new DateTime(1994, 02, 12 , 12, 00, chrnology));
+        tAxisValues.add(new DateTime(1994, 02, 22 , 12, 00, chrnology));
         TimeAxis t = new TimeAxisImpl("time", tAxisValues);
 
         domain = new HovmoellerDomain(lineString, t);
@@ -84,15 +89,15 @@ public class HovmoellerPlotTest {
         Array2D<Number> data = new ValuesArray2D(hovmoellerYsize, hovmoellerXsize);
         // Inject dummy data
         for (int i = 0; i < hovmoellerXsize; i++) {
-            float fnumber = 25.0f + i * 2.0f;
+            float fnumber = 25.0f + i * 20.0f;
 
             for (int j = 0; j < hovmoellerYsize; j++) {
-                data.set(fnumber + j * 1.0f, j, i);
+                data.set(fnumber + j * 8.0f, j, i);
             }
         }
-        data.set(null, 3, 4);
+        //data.set(null, 3, 4);
         Map<String, Parameter> parameters = new HashMap<>();
-        Parameter degree =new Parameter("101", "temp degree", "test", "degree", "test");
+        Parameter degree =new Parameter("101", "temp degree", "Temperature", "degree", "Temperature");
         parameters.put("vLon", degree);
         Map<String, Array2D<Number>> values = new HashMap<>();
         values.put("vLon", data);
