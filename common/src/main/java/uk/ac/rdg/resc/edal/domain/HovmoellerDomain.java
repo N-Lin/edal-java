@@ -142,6 +142,11 @@ public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerC
         return domainObjects;
     }
 
+    /**
+     * 
+     * @return The {@link CoordinateReferenceSystem} the line string inside the
+     *         domain uses.
+     */
     public CoordinateReferenceSystem getCoordinateReferenceSystem() {
         return crs;
     }
@@ -188,24 +193,41 @@ public class HovmoellerDomain implements DiscreteDomain<GeoPosition, HovmoellerC
         return result;
     }
 
+    /**
+     * 
+     * @return A {@link list} containing all {@link HorizontalPostion}s on the
+     *         line string.
+     */
     public List<HorizontalPosition> getlPointsOnLineString() {
         return pointsOnLineString;
     }
 
+    /**
+     * 
+     * @return {@link TimeAxis} this domain applies.
+     */
     public TimeAxis getTimeAxis() {
         return tAxis;
     }
 
+    /**
+     * 
+     * @return The number of {@link HorizontalPostion}s on the line string.
+     */
     public int getNumberOfPoints() {
         return pointsOnLineString.size();
     }
 
+    /**
+     * 
+     * @return The number of times values on the time axis.
+     */
     public int getNumberOfTimes() {
         return tAxis.size();
     }
 
     /**
-     * Get the line string in the Hovmoeller domain.
+     * Get the {@link LineString} in this domain.
      * 
      * @return An object of {@link LineString}.
      */
