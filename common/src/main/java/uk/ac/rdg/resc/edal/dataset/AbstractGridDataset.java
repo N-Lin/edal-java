@@ -2016,7 +2016,7 @@ public abstract class AbstractGridDataset extends AbstractDataset {
     public HovmoellerFeature extractHovmollerFeatures(Set<String> varIds,
             final HovmoellerDomain domain) throws DataReadingException {
         GridDataSource dataSource = null;
-        if(domain.getlPointsOnLineString()==null || domain.getTimeAxis() ==null){
+        if (domain.getlPointsOnLineString() == null || domain.getTimeAxis() == null) {
             return null;
         }
         try {
@@ -2089,9 +2089,9 @@ public abstract class AbstractGridDataset extends AbstractDataset {
 
             for (String derivedVarId : varsToGenerate.keySet()) {
                 VariablePlugin plugin = varsToGenerate.get(derivedVarId);
-                
+
                 @SuppressWarnings("unchecked")
-                Array2D<Number>[] pluginSourceData = new Array2D[plugin.usesVariables().length];
+                Array2D<Number> [] pluginSourceData = new ValuesArray2D[plugin.usesVariables().length];
                 VariableMetadata[] pluginSourceMetadata = new VariableMetadata[plugin
                         .usesVariables().length];
                 /*
@@ -2173,9 +2173,14 @@ public abstract class AbstractGridDataset extends AbstractDataset {
 
             for (int j = 0; j < ysize; j++) {
                 HorizontalPosition position = cells.get(j, i).horizontalPosition;
-                Number value = readPointData(variableId, position, z, tAxis.getCoordinateValue(j),
-                        dataSource);
-                data.set(value, j, i);
+                if(getVariableMetadata(variableId).getTemporalDomain().contains(tAxis.getCoordinateValue(j))){
+                    Number value = readPointData(variableId, position, z, tAxis.getCoordinateValue(j),
+                            dataSource);
+                    data.set(value, j, i);
+                }
+                else{
+                    data.set(null, j, i);
+                }
             }
 
         }

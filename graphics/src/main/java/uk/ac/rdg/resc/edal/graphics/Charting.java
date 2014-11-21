@@ -886,7 +886,8 @@ final public class Charting {
          * y-axis. When we have a new data store available, we use it to plot
          * the Hovmoeller diagram.
          */
-        final long HOUR = 60L * 60L * 1000L;
+        final long MINUTE =60L *1000L;
+        final long HOUR = 60L * MINUTE;
         final long DAY = 24L * HOUR;
 
         LineString lineString = feature.getDomain().getLineString();
@@ -950,7 +951,8 @@ final public class Charting {
         int[] distancesInIntegerUnit = new int[numberOfPoints];
 
         for (int i = 0; i < numberOfPoints; i++) {
-            distancesInIntegerUnit[i] = (int) (distancesBetweenMidPoints[i] * multipleOfTen);
+            //distancesInIntegerUnit[i] = (int) (distancesBetweenMidPoints[i] * multipleOfTen);
+            distancesInIntegerUnit[i] = (int) Math.ceil(distancesBetweenMidPoints[i] * multipleOfTen);
         }
 
         TimeAxis domainTimeAxis = feature.getDomain().getTimeAxis();
@@ -963,6 +965,7 @@ final public class Charting {
             timesValues[i] = domainTimeAxis.getCoordinateValue(i).getMillis();
         }
         long[] timesExtents = getExtentsValuesOnTimeAxis(timesValues);
+        
 
         /*
          * The plot should cover the time axis's coordinate extent, so the
@@ -993,6 +996,7 @@ final public class Charting {
             timesExtentsInIntegerUnit[i] = (int) (timesExtents[i] / hcf);
 
         }
+
         Array2D<Number> data = feature.getValues(varId);
         // Create XYZdataset for xyblockrenderer.
         XYZDataset dataset = new HovmoellerDataset(data, distancesInIntegerUnit,
@@ -1003,7 +1007,7 @@ final public class Charting {
         DateAxis tAxis = new DateAxis("Date");
 
         tAxis.setRange(new Date(datasetTimeFrom), new Date(datasetTimeTo));
-
+System.out.println("hcf : =" +hcf);
         // Set proper tick unit for date (Y) axis
         if (hcf > 11 * HOUR) {
             int step = (int) (hcf / DAY);
@@ -1011,11 +1015,13 @@ final public class Charting {
                 step = 1;
             }
             tAxis.setTickUnit(new DateTickUnit(DateTickUnitType.DAY, step));
-        } else {
+        } else if (hcf > HOUR){
             tAxis.setTickUnit(new DateTickUnit(DateTickUnitType.HOUR, (int) (hcf / HOUR)));
+        } else{
+            tAxis.setTickUnit(new DateTickUnit(DateTickUnitType.HOUR, 1));
         }
 
-        tAxis.setTickMarkPosition(DateTickMarkPosition.MIDDLE);
+        tAxis.setTickMarkPosition(DateTickMarkPosition.START);
         tAxis.setDateFormatOverride(sdf);
 
         NumberAxis locationAxis = new NumberAxis("Distance along path (arbitrary units)");
@@ -1058,7 +1064,7 @@ final public class Charting {
         // The first half width of a distance extent.
         double exgap = 0.0;
 
-        for (int i = 0; i < numberOfPoints; i++) {
+        /*for (int i = 0; i < numberOfPoints; i++) {
             // The second half width of a distance extent.
             double gap = distancesInIntegerUnit[i] / 2.0;
             IntervalMarker target = new IntervalMarker(start, start + exgap + gap);
@@ -1078,7 +1084,7 @@ final public class Charting {
             plot.addDomainMarker(target);
             start = start + exgap + gap;
             exgap = gap;
-        }
+        }*/
 
         JFreeChart chart = new JFreeChart(plot);
         chart.removeLegend();
@@ -1102,7 +1108,7 @@ final public class Charting {
      * 
      * @return The minimum value of the given array.
      */
-    private static Number getMinValueOfArray2D(Array2D<Number> data) {
+    public static Number getMinValueOfArray2D(Array2D<Number> data) {
         Number minValue = Double.MAX_VALUE;
         Iterator<Number> iterator = data.iterator();
         while (iterator.hasNext()) {
@@ -1122,7 +1128,7 @@ final public class Charting {
      * 
      * @return The maximum value of the given array.
      */
-    private static Number getMaxValueOfArray2D(Array2D<Number> data) {
+    public static Number getMaxValueOfArray2D(Array2D<Number> data) {
         Number maxValue = Double.MIN_VALUE;
         Iterator<Number> iterator = data.iterator();
         while (iterator.hasNext()) {

@@ -1240,15 +1240,15 @@ public class RectilinearGridDatasetTest {
         List<DateTime> tAxisValues = new ArrayList<>();
 
         int numberOfHorizontalPositions = lineString.size();
-        int numberOfTimes = 5;
-
+        int numberOfTimes = 5;        
         for (int i = 0; i < numberOfTimes; i++) {
-            // These values are same as these on the time axis of the dataset
-            tAxisValues.add(new DateTime(2000, 01, 01 + i, 00, 00, chrnology));
+            tAxisValues.add(new DateTime(2000, 01, 07 + i, 13, 00, chrnology));
         }
-        TimeAxis tAxis = new TimeAxisImpl("time", tAxisValues);
+        TimeAxis hDomainTAxis = new TimeAxisImpl("time", tAxisValues);
 
-        HovmoellerDomain hovmoellerDomain = new HovmoellerDomain(lineString, tAxis);
+        HovmoellerDomain hovmoellerDomain = new HovmoellerDomain(lineString, hDomainTAxis);
+        
+        
         // A variable whose Hovmoeller feature is to be extracted.
         String varId = "vLon";
 
@@ -1275,8 +1275,14 @@ public class RectilinearGridDatasetTest {
         for (int i = 0; i < numberOfHorizontalPositions; i++) {
             int xindex = coordinates.get(i).getX();
             float expectedValue = 100.0f * xindex / (xSize - 1);
-            for (int j = 0; j < numberOfTimes; j++) {
-                assertEquals(expectedValue, results.get(j, i).floatValue(), delta);
+            for (int j=0; j<numberOfTimes; j++) {
+                int tIndex =tAxis.findIndexOf(hDomainTAxis.getCoordinateValue(j));
+                if(tIndex >0){
+                    assertEquals(expectedValue, results.get(j, i).floatValue(), delta);
+                }
+                else{
+                    assertEquals(null, results.get(j, i));
+                }
             }
         }
         
@@ -1285,8 +1291,14 @@ public class RectilinearGridDatasetTest {
         for (int i = 0; i < numberOfHorizontalPositions; i++) {
             int yindex = coordinates.get(i).getY();
             float expectedValue = 100.0f * yindex / (ySize - 1);
-            for (int j = 0; j < numberOfTimes; j++) {
-                assertEquals(expectedValue, results.get(j, i).floatValue(), delta);
+            for (int j=0; j<numberOfTimes; j++) {
+                int tIndex =tAxis.findIndexOf(hDomainTAxis.getCoordinateValue(j));
+                if(tIndex >0){
+                    assertEquals(expectedValue, results.get(j, i).floatValue(), delta);
+                }
+                else{
+                    assertEquals(null, results.get(j, i));
+                }
             }
         }
         
@@ -1294,8 +1306,14 @@ public class RectilinearGridDatasetTest {
         results = hovmoellerFeature.getValues(varId);
         for (int i = 0; i < numberOfHorizontalPositions; i++) {
             for (int j = 0; j < numberOfTimes; j++) {
-                float expectedValue = 100.0f * j / (tSize - 1);
-                assertEquals(expectedValue, results.get(j, i).floatValue(), delta);
+                int tIndex =tAxis.findIndexOf(hDomainTAxis.getCoordinateValue(j));               
+                if(tIndex>0){
+                    float expectedValue = 100.0f * tIndex / (tSize - 1);
+                    assertEquals(expectedValue, results.get(j, i).floatValue(), delta);
+                }
+                else{
+                    assertEquals(null, results.get(j, i));
+                }
             }
         }
 
