@@ -426,7 +426,7 @@ public abstract class AbstractGridDataset extends AbstractDataset {
      *             If there is a problem opening the {@link GridDataSource}
      * @throws DataReadingException
      *             If there is a problem reading the data
-     * @throws VariableNotFoundException 
+     * @throws VariableNotFoundException
      */
     private Array2D<Number> readHorizontalData(String varId, final HorizontalGrid targetGrid,
             Double zPos, DateTime time, GridDataSource dataSource) throws IOException,
@@ -485,7 +485,7 @@ public abstract class AbstractGridDataset extends AbstractDataset {
      *             If there is a problem opening the {@link GridDataSource}
      * @throws DataReadingException
      *             If there is a problem reading the data
-     * @throws VariableNotFoundException 
+     * @throws VariableNotFoundException
      */
     private Array2D<Number> readUnderlyingHorizontalData(String varId, HorizontalGrid targetGrid,
             Double zPos, DateTime time, GridDataSource dataSource) throws IOException,
@@ -924,11 +924,12 @@ public abstract class AbstractGridDataset extends AbstractDataset {
      * @throws IOException
      *             If there was a problem reading data from the
      *             {@link GridDataSource}
-     * @throws VariableNotFoundException 
+     * @throws VariableNotFoundException
      */
     private Map<ProfileLocation, Array1D<Number>> readVerticalData(VariableMetadata metadata,
             VerticalAxis zAxis, BoundingBox bbox, DateTime targetT, Extent<DateTime> tExtent,
-            GridDataSource dataSource) throws IOException, DataReadingException, VariableNotFoundException {
+            GridDataSource dataSource) throws IOException, DataReadingException,
+            VariableNotFoundException {
         VariablePlugin plugin = isDerivedVariable(metadata.getId());
         if (plugin == null) {
             /*
@@ -1419,7 +1420,8 @@ public abstract class AbstractGridDataset extends AbstractDataset {
         return features;
     }
 
-    private TimeAxis getTimeAxis(Set<String> varIds) throws IncorrectDomainException, VariableNotFoundException {
+    private TimeAxis getTimeAxis(Set<String> varIds) throws IncorrectDomainException,
+            VariableNotFoundException {
         /*
          * TODO Test?
          */
@@ -1533,7 +1535,7 @@ public abstract class AbstractGridDataset extends AbstractDataset {
      * @throws IOException
      *             If there was a problem reading data from the
      *             {@link GridDataSource}
-     * @throws VariableNotFoundException 
+     * @throws VariableNotFoundException
      */
     private Map<PointSeriesLocation, Array1D<Number>> readTemporalData(VariableMetadata metadata,
             TimeAxis tAxis, BoundingBox bbox, Double targetZ, Extent<Double> zExtent,
@@ -1954,7 +1956,8 @@ public abstract class AbstractGridDataset extends AbstractDataset {
     }
 
     private Number readPointData(String variableId, HorizontalPosition position, Double zVal,
-            DateTime time, GridDataSource gridDataSource) throws DataReadingException, VariableNotFoundException {
+            DateTime time, GridDataSource gridDataSource) throws DataReadingException,
+            VariableNotFoundException {
         VariablePlugin plugin = isDerivedVariable(variableId);
         if (plugin != null) {
             /*
@@ -2014,7 +2017,7 @@ public abstract class AbstractGridDataset extends AbstractDataset {
     protected abstract DataReadingStrategy getDataReadingStrategy();
 
     public HovmoellerFeature extractHovmollerFeatures(Set<String> varIds,
-            final HovmoellerDomain domain) throws DataReadingException {
+            final HovmoellerDomain domain) throws DataReadingException, VariableNotFoundException {
         GridDataSource dataSource = null;
         if (domain.getlPointsOnLineString() == null || domain.getTimeAxis() == null) {
             return null;
@@ -2050,7 +2053,7 @@ public abstract class AbstractGridDataset extends AbstractDataset {
             for (String varId : varIds) {
                 if (!getVariableMetadata(varId).isScalar()) {
                     /*
-                     * Don't read data for unplottable variables
+                     * Don't read data for un-plottable variables
                      */
                     continue;
                 }
@@ -2090,8 +2093,8 @@ public abstract class AbstractGridDataset extends AbstractDataset {
             for (String derivedVarId : varsToGenerate.keySet()) {
                 VariablePlugin plugin = varsToGenerate.get(derivedVarId);
 
-                @SuppressWarnings("unchecked")
-                Array2D<Number> [] pluginSourceData = new ValuesArray2D[plugin.usesVariables().length];
+                //@SuppressWarnings("unchecked")
+                Array2D<Number>[] pluginSourceData = new ValuesArray2D[plugin.usesVariables().length];
                 VariableMetadata[] pluginSourceMetadata = new VariableMetadata[plugin
                         .usesVariables().length];
                 /*
@@ -2157,7 +2160,8 @@ public abstract class AbstractGridDataset extends AbstractDataset {
     }
 
     private final Array2D<Number> readSingleVariableInHovmoellerDomain(String variableId,
-            HovmoellerDomain domain, GridDataSource dataSource) throws DataReadingException {
+            HovmoellerDomain domain, GridDataSource dataSource) throws DataReadingException,
+            VariableNotFoundException {
         TimeAxis tAxis = domain.getTimeAxis();
 
         int ysize = domain.getTimeAxis().size();
@@ -2173,12 +2177,12 @@ public abstract class AbstractGridDataset extends AbstractDataset {
 
             for (int j = 0; j < ysize; j++) {
                 HorizontalPosition position = cells.get(j, i).horizontalPosition;
-                if(getVariableMetadata(variableId).getTemporalDomain().contains(tAxis.getCoordinateValue(j))){
-                    Number value = readPointData(variableId, position, z, tAxis.getCoordinateValue(j),
-                            dataSource);
+                if (getVariableMetadata(variableId).getTemporalDomain().contains(
+                        tAxis.getCoordinateValue(j))) {
+                    Number value = readPointData(variableId, position, z,
+                            tAxis.getCoordinateValue(j), dataSource);
                     data.set(value, j, i);
-                }
-                else{
+                } else {
                     data.set(null, j, i);
                 }
             }

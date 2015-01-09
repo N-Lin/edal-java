@@ -886,9 +886,8 @@ final public class Charting {
          * y-axis. When we have a new data store available, we use it to plot
          * the Hovmoeller diagram.
          */
-        final long MINUTE =60L *1000L;
+        final long MINUTE = 60L * 1000L;
         final long HOUR = 60L * MINUTE;
-        final long DAY = 24L * HOUR;
 
         LineString lineString = feature.getDomain().getLineString();
 
@@ -942,20 +941,41 @@ final public class Charting {
         if (minMidPointDistance > 0.001 && minMidPointDistance < 0.01) {
             multipleOfTen = 1000;
             tickUnit = 250.0;
-        }
-        if (minMidPointDistance > 0.0001 && minMidPointDistance < 0.001) {
+        } else if (minMidPointDistance > 0.0001 && minMidPointDistance < 0.001) {
             multipleOfTen = 10000;
             tickUnit = 2000.0;
+        } else if (minMidPointDistance > 0.00001 && minMidPointDistance < 0.0001) {
+            multipleOfTen = 100000;
+            tickUnit = 20000.0;
+        } else if (minMidPointDistance > 0.000001 && minMidPointDistance < 0.00001) {
+            multipleOfTen = 1000000;
+            tickUnit = 200000.0;
         }
         // An array store the widths of the blocks in an integer unit.
         int[] distancesInIntegerUnit = new int[numberOfPoints];
 
+        /*
+         * When fractional distance converted into an integer, as a approximate
+         * way, the smallest integer which is greater than the approximate
+         * result is chosen. There is a gap between the approximate result with
+         * its real value. The gap must be considered as the sum of the
+         * approximate values will be greater than the value of multipleOfTen.
+         * If we set the range of x-axis to only multipleOfTen, some values will
+         * be missing from the plot. We should set the range of x-axis to
+         * multiOfTen plus the sum of the gaps!
+         */
+        double addedGap = 0.0;
+
         for (int i = 0; i < numberOfPoints; i++) {
-            //distancesInIntegerUnit[i] = (int) (distancesBetweenMidPoints[i] * multipleOfTen);
-            distancesInIntegerUnit[i] = (int) Math.ceil(distancesBetweenMidPoints[i] * multipleOfTen);
+            // distancesInIntegerUnit[i] = (int) (distancesBetweenMidPoints[i] *
+            // multipleOfTen);
+            double temp = distancesBetweenMidPoints[i] * multipleOfTen;
+            distancesInIntegerUnit[i] = (int) Math.ceil(temp);
+            addedGap += (distancesInIntegerUnit[i] - temp);
         }
 
         TimeAxis domainTimeAxis = feature.getDomain().getTimeAxis();
+
         Extent<DateTime> domainTimeExtent = domainTimeAxis.getExtent();
 
         int numOfTimes = domainTimeAxis.size();
@@ -965,20 +985,9 @@ final public class Charting {
             timesValues[i] = domainTimeAxis.getCoordinateValue(i).getMillis();
         }
         long[] timesExtents = getExtentsValuesOnTimeAxis(timesValues);
-        
 
-        /*
-         * The plot should cover the time axis's coordinate extent, so the
-         * starting time has to be modified. However, the ending time need not.
-         */
-        long datasetTimeFrom = domainTimeExtent.getLow().getMillis() - timesExtents[0];
+        long datasetTimeFrom = domainTimeExtent.getLow().getMillis();
         long datasetTimeTo = domainTimeExtent.getHigh().getMillis();
-
-        /*
-         * We modify the starting time, so the height of the first block has to
-         * be modified.
-         */
-        timesExtents[0] = timesExtents[0] * 2;
 
         // Find the highest common factor of times extents.
         BigInteger commonFactor = BigInteger.valueOf(timesExtents[0]);
@@ -1006,27 +1015,25 @@ final public class Charting {
 
         DateAxis tAxis = new DateAxis("Date");
 
-        tAxis.setRange(new Date(datasetTimeFrom), new Date(datasetTimeTo));
-System.out.println("hcf : =" +hcf);
-        // Set proper tick unit for date (Y) axis
-        if (hcf > 11 * HOUR) {
-            int step = (int) (hcf / DAY);
-            if (step < 1) {
-                step = 1;
-            }
-            tAxis.setTickUnit(new DateTickUnit(DateTickUnitType.DAY, step));
-        } else if (hcf > HOUR){
-            tAxis.setTickUnit(new DateTickUnit(DateTickUnitType.HOUR, (int) (hcf / HOUR)));
-        } else{
-            tAxis.setTickUnit(new DateTickUnit(DateTickUnitType.HOUR, 1));
-        }
+        tAxis.setRange(datasetTimeFrom, datasetTimeTo);
+        // The number of times displayed on the data axis
+        final int numberOfUnitsOnDateAxis = 8;
+        long timeGap = (datasetTimeTo - datasetTimeFrom) / numberOfUnitsOnDateAxis;
 
+        int step = (int) (timeGap / HOUR);
+
+        // Time step on the time axis must be at least ONE hour.
+        if (step < 1) {
+            step = 1;
+        }
+        tAxis.setTickUnit(new DateTickUnit(DateTickUnitType.HOUR, step));
         tAxis.setTickMarkPosition(DateTickMarkPosition.START);
         tAxis.setDateFormatOverride(sdf);
+        tAxis.setTickLabelsVisible(true);
 
         NumberAxis locationAxis = new NumberAxis("Distance along path (arbitrary units)");
 
-        locationAxis.setRange(0, multipleOfTen);
+        locationAxis.setRange(0, multipleOfTen + ((int) addedGap));
         locationAxis.setTickUnit(new NumberTickUnit(tickUnit));
 
         // The min value of the data
@@ -1057,34 +1064,6 @@ System.out.println("hcf : =" +hcf);
 
         XYPlot plot = new XYPlot(dataset, locationAxis, tAxis, xyblockrenderer);
         plot.setDomainGridlinesVisible(false);
-
-        // A starting position of an interval marker.
-        double start = 0.0;
-
-        // The first half width of a distance extent.
-        double exgap = 0.0;
-
-        /*for (int i = 0; i < numberOfPoints; i++) {
-            // The second half width of a distance extent.
-            double gap = distancesInIntegerUnit[i] / 2.0;
-            IntervalMarker target = new IntervalMarker(start, start + exgap + gap);
-            target.setPaint(TRANSPARENT);
-            String label = "[" + printTwoDecimals(lineString.getControlPoints().get(i).getY())
-                    + "," + printTwoDecimals(lineString.getControlPoints().get(i).getX()) + "]";
-            target.setLabel(label);
-            target.setLabelFont(new Font("SansSerif", Font.ITALIC, 8));
-            if (i % 2 == 0) {
-                target.setLabelAnchor(RectangleAnchor.TOP_RIGHT);
-                target.setLabelTextAnchor(TextAnchor.TOP_RIGHT);
-            } else {
-                target.setLabelAnchor(RectangleAnchor.BOTTOM_RIGHT);
-                target.setLabelTextAnchor(TextAnchor.BOTTOM_RIGHT);
-            }
-            // add marker to plot
-            plot.addDomainMarker(target);
-            start = start + exgap + gap;
-            exgap = gap;
-        }*/
 
         JFreeChart chart = new JFreeChart(plot);
         chart.removeLegend();

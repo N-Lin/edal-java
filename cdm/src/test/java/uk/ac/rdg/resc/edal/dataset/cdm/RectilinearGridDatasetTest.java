@@ -243,7 +243,8 @@ public class RectilinearGridDatasetTest {
      * Test some get methods (getDatasetChronology, getDatasetVerticalCrs,
      * getMapFeatureType, getVariableMetadata) in {@link Dataset} by evaluating
      * the metadata of the test dataset.
-     * @throws VariableNotFoundException 
+     * 
+     * @throws VariableNotFoundException
      **/
     @Test
     public void testMetadataInfo() throws VariableNotFoundException {
@@ -267,7 +268,7 @@ public class RectilinearGridDatasetTest {
      *             If there is a problem reading the underlying data
      * @throws UnsupportedOperationException
      *             If not all of the requested variables have a time domain
-     * @throws VariableNotFoundException 
+     * @throws VariableNotFoundException
      */
     @Test
     public void testReturnEmptyTimeSerieFeatures() throws DataReadingException,
@@ -333,13 +334,15 @@ public class RectilinearGridDatasetTest {
     /**
      * Test if it throws IllegalArgumentException when the constructor of
      * {@link PlottingDomainParams} contains meaningless parameters.
-     * @throws VariableNotFoundException 
+     * 
+     * @throws VariableNotFoundException
      * 
      * @throws DataReadingExcpetion
      *             If there is a problem reading the underlying data
      */
     @Test(expected = IllegalArgumentException.class)
-    public void testMapFeaturesWithWrongParams() throws DataReadingException, VariableNotFoundException {
+    public void testMapFeaturesWithWrongParams() throws DataReadingException,
+            VariableNotFoundException {
         // date value is out bound of tAxis
         DateTime tValue = new DateTime(2000, 11, 02, 15, 00, chrnology);
         double zPos = 40.0;
@@ -378,7 +381,8 @@ public class RectilinearGridDatasetTest {
      * General test {@link Dataset#extractMapFeatures} method. When the values
      * for para of the constructor {@link PlottingDomainParams} are set
      * properly, it returns expected results.
-     * @throws VariableNotFoundException 
+     * 
+     * @throws VariableNotFoundException
      * 
      * @throws DataReadingExcpetion
      *             If there is a problem reading the underlying data
@@ -436,14 +440,16 @@ public class RectilinearGridDatasetTest {
      * General test {@link Dataset#extractTimeSeriesFeatures} method. When the
      * values for para of the constructor {@link PlottingDomainParams} are set
      * properly, it returns expected results.
-     * @throws VariableNotFoundException 
-     * @throws UnsupportedOperationException 
+     * 
+     * @throws VariableNotFoundException
+     * @throws UnsupportedOperationException
      * 
      * @throws DataReadingExcpetion
      *             If there is a problem reading the underlying data
      */
     @Test
-    public void testTimeSerieFeatures() throws DataReadingException, UnsupportedOperationException, VariableNotFoundException {
+    public void testTimeSerieFeatures() throws DataReadingException, UnsupportedOperationException,
+            VariableNotFoundException {
         Double zPos = 30.0;
 
         /*
@@ -504,10 +510,11 @@ public class RectilinearGridDatasetTest {
      *            {@link PlottingDomainParams}in the calling method
      * @throws DataReadingException
      *             If there is a problem reading the underlying data
-     * @throws VariableNotFoundException 
-     * @throws UnsupportedOperationException 
+     * @throws VariableNotFoundException
+     * @throws UnsupportedOperationException
      */
-    private void getFeatureByZExtent(Extent<Double> zExtent) throws DataReadingException, UnsupportedOperationException, VariableNotFoundException {
+    private void getFeatureByZExtent(Extent<Double> zExtent) throws DataReadingException,
+            UnsupportedOperationException, VariableNotFoundException {
         for (GridCell2D cell : samplePoints) {
             GridCoordinates2D gCoordinate = cell.getGridCoordinates();
             int xIndex = gCoordinate.getX();
@@ -586,10 +593,11 @@ public class RectilinearGridDatasetTest {
      *            calling method
      * @throws DataReadingException
      *             If there is a problem reading the underlying data
-     * @throws VariableNotFoundException 
-     * @throws UnsupportedOperationException 
+     * @throws VariableNotFoundException
+     * @throws UnsupportedOperationException
      */
-    private void getFeatureByTargetZ(double targetZ) throws DataReadingException, UnsupportedOperationException, VariableNotFoundException {
+    private void getFeatureByTargetZ(double targetZ) throws DataReadingException,
+            UnsupportedOperationException, VariableNotFoundException {
         if (vAxis.contains(targetZ)) {
             int zIndex = vAxis.findIndexOf(targetZ);
             for (GridCell2D cell : samplePoints) {
@@ -625,15 +633,17 @@ public class RectilinearGridDatasetTest {
      * In this test, the para of zExtent and targetZ in the constructor
      * {@link PlottingDomainParams} are set to various values in order to
      * evaluating returned {@link TimeSeriesFeatures} objects.
-     * @throws VariableNotFoundException 
-     * @throws UnsupportedOperationException 
+     * 
+     * @throws VariableNotFoundException
+     * @throws UnsupportedOperationException
      * 
      * @throws DataReadingExcpetion
      *             If there is a problem reading the underlying data
      */
 
     @Test
-    public void testTimeSerieFeaturesPartofZExents() throws DataReadingException, UnsupportedOperationException, VariableNotFoundException {
+    public void testTimeSerieFeaturesPartofZExents() throws DataReadingException,
+            UnsupportedOperationException, VariableNotFoundException {
         // a zExtent is inside the zExtent of dataset.
         Extent<Double> zExtent = Extents.newExtent(18.6, 53.4);
         getFeatureByZExtent(zExtent);
@@ -666,14 +676,16 @@ public class RectilinearGridDatasetTest {
      * In this test, the para of tExtent and targetT in the constructor
      * {@link PlottingDomainParams} are set to various values in order to
      * evaluating returned {@link TimeSeriesFeatures} objects.
-     * @throws VariableNotFoundException 
-     * @throws UnsupportedOperationException 
+     * 
+     * @throws VariableNotFoundException
+     * @throws UnsupportedOperationException
      * 
      * @throws DataReadingExcpetion
      *             If there is a problem reading the underlying data
      */
     @Test
-    public void testTimeSerieFeaturesPartofTExents() throws DataReadingException, UnsupportedOperationException, VariableNotFoundException {
+    public void testTimeSerieFeaturesPartofTExents() throws DataReadingException,
+            UnsupportedOperationException, VariableNotFoundException {
         DateTime start = new DateTime(1999, 12, 25, 15, 00, chrnology);
         DateTime end = new DateTime(2000, 1, 8, 23, 00, chrnology);
 
@@ -718,12 +730,13 @@ public class RectilinearGridDatasetTest {
      * @param tExtent
      *            the para of tExtent in the constructor of
      *            {@link PlottingDomainParams} object
-     * @throws VariableNotFoundException 
-     * @throws UnsupportedOperationException 
+     * @throws VariableNotFoundException
+     * @throws UnsupportedOperationException
      * @throws DataReadingExcpetion
      *             If there is a problem reading the underlying data
      */
-    private void extractTimeSeriesFeature(Extent<DateTime> tExtent) throws DataReadingException, UnsupportedOperationException, VariableNotFoundException {
+    private void extractTimeSeriesFeature(Extent<DateTime> tExtent) throws DataReadingException,
+            UnsupportedOperationException, VariableNotFoundException {
         for (GridCell2D cell : samplePoints) {
             GridCoordinates2D gCoordinate = cell.getGridCoordinates();
             int xIndex = gCoordinate.getX();
@@ -747,14 +760,16 @@ public class RectilinearGridDatasetTest {
     /**
      * General test to extract profile features by calling
      * {@link Dataset#extraceProfileFeatures} method.
-     * @throws VariableNotFoundException 
-     * @throws UnsupportedOperationException 
+     * 
+     * @throws VariableNotFoundException
+     * @throws UnsupportedOperationException
      * 
      * @throws DataReadingExcpetion
      *             If there is a problem reading the underlying data
      */
     @Test
-    public void testProfileFeatures() throws DataReadingException, UnsupportedOperationException, VariableNotFoundException {
+    public void testProfileFeatures() throws DataReadingException, UnsupportedOperationException,
+            VariableNotFoundException {
         DateTime dt = new DateTime(2000, 01, 05, 00, 00);
         for (GridCell2D cell : samplePoints) {
             GridCoordinates2D gCoordinate = cell.getGridCoordinates();
@@ -775,14 +790,16 @@ public class RectilinearGridDatasetTest {
     /**
      * Test to extract features by setting the para of BoundingBox in
      * {@link Dataset} extraceXXXFeatures methods.
-     * @throws VariableNotFoundException 
-     * @throws UnsupportedOperationException 
+     * 
+     * @throws VariableNotFoundException
+     * @throws UnsupportedOperationException
      * 
      * @throws DataReadingExcpetion
      *             If there is a problem reading the underlying data
      */
     @Test
-    public void testFeaturesBBox() throws DataReadingException, UnsupportedOperationException, VariableNotFoundException {
+    public void testFeaturesBBox() throws DataReadingException, UnsupportedOperationException,
+            VariableNotFoundException {
         BoundingBox bbox = new BoundingBoxImpl(-124.89, -20.9, 50.004, 25.0, crs);
         double xstep = (rGrid.getXAxis().getCoordinateExtent().getHigh() - rGrid.getXAxis()
                 .getCoordinateExtent().getLow())
@@ -829,12 +846,13 @@ public class RectilinearGridDatasetTest {
      * @param ystep
      *            the size of x side of every cell inside the bounding box of
      *            the dataset
-     * @throws VariableNotFoundException 
-     * @throws UnsupportedOperationException 
+     * @throws VariableNotFoundException
+     * @throws UnsupportedOperationException
      * @throws DataReadingExcpetion
      *             If there is a problem reading the underlying data
      */
-    private void bboxTest(BoundingBox bbox, double xstep, double ystep) throws DataReadingException, UnsupportedOperationException, VariableNotFoundException {
+    private void bboxTest(BoundingBox bbox, double xstep, double ystep)
+            throws DataReadingException, UnsupportedOperationException, VariableNotFoundException {
         PlottingDomainParams params = new PlottingDomainParams(xSize, ySize, bbox, null, null,
                 null, null, null);
         Collection<? extends ProfileFeature> profileFeatures = dataset.extractProfileFeatures(null,
@@ -903,12 +921,13 @@ public class RectilinearGridDatasetTest {
      * @param zExtent
      *            the corresponding param of zExtent in PlottingDomainParams
      *            object
-     * @throws VariableNotFoundException 
-     * @throws UnsupportedOperationException 
+     * @throws VariableNotFoundException
+     * @throws UnsupportedOperationException
      * @throws DataReadingExcpetion
      *             If there is a problem reading the underlying data
      */
-    private void zExtentCaseForProfileFeatures(Extent<Double> zExtent) throws DataReadingException, UnsupportedOperationException, VariableNotFoundException {
+    private void zExtentCaseForProfileFeatures(Extent<Double> zExtent) throws DataReadingException,
+            UnsupportedOperationException, VariableNotFoundException {
         for (GridCell2D cell : samplePoints) {
             GridCoordinates2D gCoordinate = cell.getGridCoordinates();
             int xIndex = gCoordinate.getX();
@@ -933,14 +952,16 @@ public class RectilinearGridDatasetTest {
     /**
      * Test {@link Dataset#extractProfileFeatures} method by setting various
      * values for zExtent
-     * @throws VariableNotFoundException 
-     * @throws UnsupportedOperationException 
+     * 
+     * @throws VariableNotFoundException
+     * @throws UnsupportedOperationException
      * 
      * @throws DataReadingExcpetion
      *             If there is a problem reading the underlying data
      */
     @Test
-    public void testProfileFeaturesPartOfZExtent() throws DataReadingException, UnsupportedOperationException, VariableNotFoundException {
+    public void testProfileFeaturesPartOfZExtent() throws DataReadingException,
+            UnsupportedOperationException, VariableNotFoundException {
         // test case 1
         Extent<Double> zExtent = Extents.newExtent(1220.0, 4401.0);
         zExtentCaseForProfileFeatures(zExtent);
@@ -986,7 +1007,8 @@ public class RectilinearGridDatasetTest {
      *             If there is a problem reading the underlying data
      */
     @Test
-    public void testProfileFeaturesPartOfTExtent() throws DataReadingException, UnsupportedOperationException, VariableNotFoundException {
+    public void testProfileFeaturesPartOfTExtent() throws DataReadingException,
+            UnsupportedOperationException, VariableNotFoundException {
         DateTime start = new DateTime(2000, 01, 01, 00, 00, chrnology);
         DateTime end = start;
         Extent<DateTime> tExtent = Extents.newExtent(start, end);
@@ -1027,8 +1049,8 @@ public class RectilinearGridDatasetTest {
      *            the corresponding param tExtent in PlottingDomainParams
      * @param targetT
      *            the corresponding param targetT in PlottingDomainParams
-     * @throws VariableNotFoundException 
-     * @throws UnsupportedOperationException 
+     * @throws VariableNotFoundException
+     * @throws UnsupportedOperationException
      * @throws DataReadingExcpetion
      *             If there is a problem reading the underlying data
      */
@@ -1115,15 +1137,17 @@ public class RectilinearGridDatasetTest {
      * Test {@link Dataset#extractProfileFeatures} method return empty when
      * values in the constructor of {@link PlottingDomainParams} are out of the
      * scopes of X, Y, Z, T domains.
-     * @throws VariableNotFoundException 
-     * @throws UnsupportedOperationException 
+     * 
+     * @throws VariableNotFoundException
+     * @throws UnsupportedOperationException
      * 
      * @throws DataReadingExcpetion
      *             If there is a problem reading the underlying data
      */
 
     @Test
-    public void testReturnEmptyProfileFeatures() throws DataReadingException, UnsupportedOperationException, VariableNotFoundException {
+    public void testReturnEmptyProfileFeatures() throws DataReadingException,
+            UnsupportedOperationException, VariableNotFoundException {
         DateTime start = new DateTime(2011, 01, 15, 00, 00, chrnology);
         DateTime end = new DateTime(2012, 02, 03, 00, 00, chrnology);
         Extent<DateTime> tExtent = Extents.newExtent(start, end);
@@ -1161,7 +1185,8 @@ public class RectilinearGridDatasetTest {
     /**
      * By testing {@link Dataset#readFeature}, two classes {@link GridFeature}
      * and {@link MapFeature} are tested.
-     * @throws VariableNotFoundException 
+     * 
+     * @throws VariableNotFoundException
      * 
      * @throws DataReadingExcpetion
      *             If there is a problem reading the underlying data
@@ -1230,7 +1255,8 @@ public class RectilinearGridDatasetTest {
      *             If there is a problem reading the underlying data
      */
     @Test
-    public void extractHovmoellerFeatureTest() throws DataReadingException {
+    public void extractHovmoellerFeatureTest() throws DataReadingException,
+            VariableNotFoundException {
         HorizontalPosition pos1 = new HorizontalPosition(102.2, 33.6, crs);
         HorizontalPosition pos2 = new HorizontalPosition(122.4, 46.8, crs);
         List<HorizontalPosition> lineString = new ArrayList<>();
@@ -1240,15 +1266,14 @@ public class RectilinearGridDatasetTest {
         List<DateTime> tAxisValues = new ArrayList<>();
 
         int numberOfHorizontalPositions = lineString.size();
-        int numberOfTimes = 5;        
+        int numberOfTimes = 5;
         for (int i = 0; i < numberOfTimes; i++) {
             tAxisValues.add(new DateTime(2000, 01, 07 + i, 13, 00, chrnology));
         }
         TimeAxis hDomainTAxis = new TimeAxisImpl("time", tAxisValues);
 
         HovmoellerDomain hovmoellerDomain = new HovmoellerDomain(lineString, hDomainTAxis);
-        
-        
+
         // A variable whose Hovmoeller feature is to be extracted.
         String varId = "vLon";
 
@@ -1275,43 +1300,40 @@ public class RectilinearGridDatasetTest {
         for (int i = 0; i < numberOfHorizontalPositions; i++) {
             int xindex = coordinates.get(i).getX();
             float expectedValue = 100.0f * xindex / (xSize - 1);
-            for (int j=0; j<numberOfTimes; j++) {
-                int tIndex =tAxis.findIndexOf(hDomainTAxis.getCoordinateValue(j));
-                if(tIndex >0){
+            for (int j = 0; j < numberOfTimes; j++) {
+                int tIndex = tAxis.findIndexOf(hDomainTAxis.getCoordinateValue(j));
+                if (tIndex > 0) {
                     assertEquals(expectedValue, results.get(j, i).floatValue(), delta);
-                }
-                else{
+                } else {
                     assertEquals(null, results.get(j, i));
                 }
             }
         }
-        
+
         varId = "vLat";
         results = hovmoellerFeature.getValues(varId);
         for (int i = 0; i < numberOfHorizontalPositions; i++) {
             int yindex = coordinates.get(i).getY();
             float expectedValue = 100.0f * yindex / (ySize - 1);
-            for (int j=0; j<numberOfTimes; j++) {
-                int tIndex =tAxis.findIndexOf(hDomainTAxis.getCoordinateValue(j));
-                if(tIndex >0){
+            for (int j = 0; j < numberOfTimes; j++) {
+                int tIndex = tAxis.findIndexOf(hDomainTAxis.getCoordinateValue(j));
+                if (tIndex > 0) {
                     assertEquals(expectedValue, results.get(j, i).floatValue(), delta);
-                }
-                else{
+                } else {
                     assertEquals(null, results.get(j, i));
                 }
             }
         }
-        
+
         varId = "vTime";
         results = hovmoellerFeature.getValues(varId);
         for (int i = 0; i < numberOfHorizontalPositions; i++) {
             for (int j = 0; j < numberOfTimes; j++) {
-                int tIndex =tAxis.findIndexOf(hDomainTAxis.getCoordinateValue(j));               
-                if(tIndex>0){
+                int tIndex = tAxis.findIndexOf(hDomainTAxis.getCoordinateValue(j));
+                if (tIndex > 0) {
                     float expectedValue = 100.0f * tIndex / (tSize - 1);
                     assertEquals(expectedValue, results.get(j, i).floatValue(), delta);
-                }
-                else{
+                } else {
                     assertEquals(null, results.get(j, i));
                 }
             }
