@@ -88,4 +88,45 @@ public abstract class Array1D<T> implements Array<T> {
     public int[] getShape() {
         return new int[] { size };
     }
+
+    @Override
+    public int hashCode() {
+        int hashValue = 0;
+        while (iterator().hasNext()) {
+            hashValue += iterator().next().hashCode();
+        }
+        return hashValue;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (obj == null) {
+            return false;
+        } else {
+            try {
+                /*
+                 * Cast obj to Arry1D<T>. If the casting fails, of course it
+                 * return false. So no need to check if the casting is right or
+                 * not.
+                 */
+                @SuppressWarnings("unchecked")
+                Array1D<T> other = (Array1D<T>) obj;
+                // Two arrays have different size, they are not equal.
+                if (other.size != size) {
+                    return false;
+                } else {
+                    for (int i = 0; i < size; i++) {
+                        if (!other.get(i).equals(get(i))) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+            } catch (ClassCastException e) {
+                return false;
+            }
+        }
+    }
 }
