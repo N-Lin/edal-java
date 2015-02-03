@@ -99,9 +99,9 @@ public final class Clipper {
              */
             List<GridCell2D> ids = new ArrayList<>();
 
-            for (int i = searchXfrom; i < searchXTo + 1; i++) {
-                for (int j = searchYfrom; j < searchYTo + 1; j++) {
-                    GridCell2D cell = domainObjects.get(j, i);
+            for (int i = searchYfrom; i < searchYTo + 1; i++) {
+                for (int j = searchXfrom; j < searchXTo + 1; j++) {
+                    GridCell2D cell = domainObjects.get(i, j);
                     if (bbox.contains(cell.getCentre())) {
                         ids.add(cell);
                     }

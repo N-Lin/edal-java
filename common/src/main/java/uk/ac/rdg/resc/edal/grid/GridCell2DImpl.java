@@ -95,4 +95,21 @@ public final class GridCell2DImpl implements GridCell2D {
     public String toString() {
         return centre.getX() + "," + centre.getY();
     }
+    
+    @Override
+    public int hashCode(){
+        return parentGrid.hashCode()+gridCoords.hashCode();
+    }
+    
+    @Override
+    public boolean equals(Object obj){
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        GridCell2DImpl other = (GridCell2DImpl) obj;
+        return gridCoords.equals(other.gridCoords) && parentGrid.equals(other.parentGrid);
+    }
 }

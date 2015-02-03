@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.geotoolkit.referencing.crs.DefaultGeographicCRS;
+import org.h2.constant.SysProperties;
 import org.junit.Test;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
@@ -15,7 +16,9 @@ import uk.ac.rdg.resc.edal.grid.GridCell2D;
 import uk.ac.rdg.resc.edal.grid.RegularGrid;
 import uk.ac.rdg.resc.edal.grid.RegularGridImpl;
 import uk.ac.rdg.resc.edal.position.HorizontalPosition;
+import uk.ac.rdg.resc.edal.util.Array;
 import uk.ac.rdg.resc.edal.util.Array1D;
+import uk.ac.rdg.resc.edal.util.ImmutableArray1D;
 
 public class ClipperTest {
     private CoordinateReferenceSystem crs = DefaultGeographicCRS.WGS84;
@@ -26,21 +29,25 @@ public class ClipperTest {
      */
     @Test
     public void testClip() {
-        BoundingBox bbox = new BoundingBoxImpl(105.0, 22.3, 110.0, 24.8, crs);
+        BoundingBox bbox = new BoundingBoxImpl(105.0, 22.3, 108.0, 23.4, crs);
         BoundingBox subject = new BoundingBoxImpl(100, 20, 130.0, 50.0, crs);
 
         RegularGrid grid = new RegularGridImpl(subject, 60, 60);
 
-        Array1D<GridCell2D> clippings = Clipper.clip(grid, bbox);
-        /*
-         * Since GridCell2D with related classes do not implement hash code and
-         * equals methods, we have to print out the results comparing with the
-         * expected results manually.
-         */
-        for (GridCell2D cell : clippings) {
-            System.out.println(cell.getGridCoordinates().getX() + "  "
-                    + cell.getGridCoordinates().getY());
+        Array<GridCell2D> domainObjects = grid.getDomainObjects();
+
+        List<GridCell2D> expectedCellList = new ArrayList<>();
+
+        for (GridCell2D cell : domainObjects) {
+            if (bbox.contains(cell.getCentre())) {
+                expectedCellList.add(cell);
+            }
         }
+        Array1D<GridCell2D> expectedGridCellArray = new ImmutableArray1D<GridCell2D>(
+                expectedCellList.toArray(new GridCell2D[0]));
+        Array1D<GridCell2D> clippings = Clipper.clip(grid, bbox);
+        assertEquals(expectedGridCellArray, clippings);
+
         bbox = new BoundingBoxImpl(65.0, 22.3, 90.0, 24.8, crs);
         assertNull(Clipper.clip(grid, bbox));
 
@@ -52,66 +59,111 @@ public class ClipperTest {
 
         // case 1
         bbox = new BoundingBoxImpl(90.0, 22.3, 112.0, 24.8, crs);
-        for (GridCell2D cell : Clipper.clip(grid, bbox)) {
-            System.out.println(cell.getGridCoordinates().getX() + "  "
-                    + cell.getGridCoordinates().getY());
+        expectedCellList.clear();
+        for (GridCell2D cell : domainObjects) {
+            if (bbox.contains(cell.getCentre())) {
+                expectedCellList.add(cell);
+            }
         }
+        expectedGridCellArray = new ImmutableArray1D<GridCell2D>(
+                expectedCellList.toArray(new GridCell2D[0]));
+        assertEquals(expectedGridCellArray, Clipper.clip(grid, bbox));
 
         // case 2
         bbox = new BoundingBoxImpl(105.0, 12.3, 110.0, 24.8, crs);
-        for (GridCell2D cell : Clipper.clip(grid, bbox)) {
-            System.out.println(cell.getGridCoordinates().getX() + "  "
-                    + cell.getGridCoordinates().getY());
+        expectedCellList.clear();
+        for (GridCell2D cell : domainObjects) {
+            if (bbox.contains(cell.getCentre())) {
+                expectedCellList.add(cell);
+            }
         }
+        expectedGridCellArray = new ImmutableArray1D<GridCell2D>(
+                expectedCellList.toArray(new GridCell2D[0]));
+        assertEquals(expectedGridCellArray, Clipper.clip(grid, bbox));
 
         // case 3
         bbox = new BoundingBoxImpl(90.0, 12.3, 135.0, 55, crs);
-        for (GridCell2D cell : Clipper.clip(grid, bbox)) {
-            System.out.println(cell.getGridCoordinates().getX() + "  "
-                    + cell.getGridCoordinates().getY());
+        expectedCellList.clear();
+        for (GridCell2D cell : domainObjects) {
+            if (bbox.contains(cell.getCentre())) {
+                expectedCellList.add(cell);
+            }
         }
+        expectedGridCellArray = new ImmutableArray1D<GridCell2D>(
+                expectedCellList.toArray(new GridCell2D[0]));
+        assertEquals(expectedGridCellArray, Clipper.clip(grid, bbox));
 
         // case 4
         bbox = new BoundingBoxImpl(125.0, 12.3, 135.0, 24.8, crs);
-        for (GridCell2D cell : Clipper.clip(grid, bbox)) {
-            System.out.println(cell.getGridCoordinates().getX() + "  "
-                    + cell.getGridCoordinates().getY());
+        expectedCellList.clear();
+        for (GridCell2D cell : domainObjects) {
+            if (bbox.contains(cell.getCentre())) {
+                expectedCellList.add(cell);
+            }
         }
+        expectedGridCellArray = new ImmutableArray1D<GridCell2D>(
+                expectedCellList.toArray(new GridCell2D[0]));
+        assertEquals(expectedGridCellArray, Clipper.clip(grid, bbox));
 
         // case 5
         bbox = new BoundingBoxImpl(95.0, 45.2, 105.0, 60.3, crs);
-        for (GridCell2D cell : Clipper.clip(grid, bbox)) {
-            System.out.println(cell.getGridCoordinates().getX() + "  "
-                    + cell.getGridCoordinates().getY());
+        expectedCellList.clear();
+        for (GridCell2D cell : domainObjects) {
+            if (bbox.contains(cell.getCentre())) {
+                expectedCellList.add(cell);
+            }
         }
+        expectedGridCellArray = new ImmutableArray1D<GridCell2D>(
+                expectedCellList.toArray(new GridCell2D[0]));
+        assertEquals(expectedGridCellArray, Clipper.clip(grid, bbox));
 
         // case 6
         bbox = new BoundingBoxImpl(108.0, 45.2, 110.0, 60.3, crs);
-        for (GridCell2D cell : Clipper.clip(grid, bbox)) {
-            System.out.println(cell.getGridCoordinates().getX() + "  "
-                    + cell.getGridCoordinates().getY());
+        expectedCellList.clear();
+        for (GridCell2D cell : domainObjects) {
+            if (bbox.contains(cell.getCentre())) {
+                expectedCellList.add(cell);
+            }
         }
+        expectedGridCellArray = new ImmutableArray1D<GridCell2D>(
+                expectedCellList.toArray(new GridCell2D[0]));
+        assertEquals(expectedGridCellArray, Clipper.clip(grid, bbox));
 
         // case 7
         bbox = new BoundingBoxImpl(128.0, 45.2, 140.0, 60.3, crs);
-        for (GridCell2D cell : Clipper.clip(grid, bbox)) {
-            System.out.println(cell.getGridCoordinates().getX() + "  "
-                    + cell.getGridCoordinates().getY());
+        expectedCellList.clear();
+        for (GridCell2D cell : domainObjects) {
+            if (bbox.contains(cell.getCentre())) {
+                expectedCellList.add(cell);
+            }
         }
+        expectedGridCellArray = new ImmutableArray1D<GridCell2D>(
+                expectedCellList.toArray(new GridCell2D[0]));
+        assertEquals(expectedGridCellArray, Clipper.clip(grid, bbox));
 
         // case 8
         bbox = new BoundingBoxImpl(90.0, 25.0, 110.0, 27.0, crs);
-        for (GridCell2D cell : Clipper.clip(grid, bbox)) {
-            System.out.println(cell.getGridCoordinates().getX() + "  "
-                    + cell.getGridCoordinates().getY());
+        expectedCellList.clear();
+        for (GridCell2D cell : domainObjects) {
+            if (bbox.contains(cell.getCentre())) {
+                expectedCellList.add(cell);
+            }
         }
+        expectedGridCellArray = new ImmutableArray1D<GridCell2D>(
+                expectedCellList.toArray(new GridCell2D[0]));
+        assertEquals(expectedGridCellArray, Clipper.clip(grid, bbox));
 
         // case 9
         bbox = new BoundingBoxImpl(128.0, 25.0, 140.0, 27.0, crs);
-        for (GridCell2D cell : Clipper.clip(grid, bbox)) {
-            System.out.println(cell.getGridCoordinates().getX() + "  "
-                    + cell.getGridCoordinates().getY());
+        expectedCellList.clear();
+        for (GridCell2D cell : domainObjects) {
+            if (bbox.contains(cell.getCentre())) {
+                expectedCellList.add(cell);
+            }
         }
+        expectedGridCellArray = new ImmutableArray1D<GridCell2D>(
+                expectedCellList.toArray(new GridCell2D[0]));
+        assertEquals(expectedGridCellArray, Clipper.clip(grid, bbox));
     }
 
     @Test
